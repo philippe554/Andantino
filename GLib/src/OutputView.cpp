@@ -22,22 +22,12 @@ namespace GLib
 		for (int i = start; i < min(text.size(), stop); i++)
 		{
 			D2D1_RECT_F textBox = { float(xOffset), float(i * fontSize + yOffset), float(textWidth), float(i * fontSize + fontSize + yOffset) };
-			w->print(text[i], c->get(C::White), w->get(14, 500, "Courier New"), textBox);
+			w->print(text[i], c->get(C::White), WriterFactory::getFont(14, 500, "Courier New"), textBox);
 		}
 	}
 
 	void OutputView::update()
 	{
-		int n = rand() % 1000;
-		if (n <= 50)
-		{
-			std::string spaces = "";
-			for (int i = 0; i < n * 2; i++)
-			{
-				spaces += " ";
-			}
-			write("Random #: " + std::to_string(n) + spaces + "abcdefghijklmnopqrstuvwxyz\n");
-		}
 	}
 
 	void OutputView::winEvent(Frame * frame, HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
@@ -57,7 +47,7 @@ namespace GLib
 			{
 				text.push_back("");
 			}
-			else
+			else if(c != '\r')
 			{
 				text.back() += c;
 			}

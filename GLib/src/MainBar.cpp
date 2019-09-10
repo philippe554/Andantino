@@ -28,14 +28,17 @@ namespace GLib
 					move = true;
 					movePoint = { x,y };
 					SetCapture(Frame::getHWND());
+					return true;
 				}
 			}
+			return false;
 		});
 
 		addMouseListener(WM_LBUTTONUP, [&](int x, int y)
 		{
 			move = false;
 			ReleaseCapture();
+			return false;
 		});
 
 		addMouseListener(WM_MOUSEMOVE, [&](int x, int y)
@@ -47,17 +50,21 @@ namespace GLib
 				GetCursorPos(&p);
 				GetWindowRect(Frame::getHWND(), &pr);
 				MoveWindow(Frame::getHWND(), p.x - movePoint.x, p.y - movePoint.y, pr.right - pr.left, pr.bottom - pr.top, false);
+				return true;
 			}
+			return false;
 		});
 
 		addMouseListener(WM_MOUSELEAVE, [&](int x, int y)
 		{
 			move = false;
+			return false;
 		});
 
 		addMouseListener(WM_CAPTURECHANGED, [&](int x, int y)
 		{
 			move = false;
+			return false;
 		});
 	}
 
@@ -65,6 +72,6 @@ namespace GLib
 	{
 		rt->FillRectangle(background, c->get(C::LightGray));
 
-		w->print(title, c->get(C::Black), w->get(30), titleBox);
+		w->print(title, c->get(C::Black), WriterFactory::getFont(30), titleBox);
 	}
 }

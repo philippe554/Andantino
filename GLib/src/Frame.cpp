@@ -28,7 +28,8 @@ namespace GLib
 		wc.lpfnWndProc = Frame::wndProc;
 		wc.lpszClassName = "WIN_CLASS";
 		wc.lpszMenuName = 0;
-		wc.style = CS_HREDRAW | CS_VREDRAW;
+		wc.style = CS_HREDRAW | CS_VREDRAW 
+			| CS_DBLCLKS; // Activates double click messages
 
 		if (!RegisterClass(&wc))
 		{
@@ -82,28 +83,67 @@ namespace GLib
 	{
 		MSG msg;
 
+		auto last = std::chrono::system_clock::now();
+
 		while (true)
 		{
-			while (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE) > 0) //TODO: Check PM_REMOVE and ">0"
+			while (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE))
+			//if (GetMessage(&msg, NULL, 0, 0) > 0) //TODO: Check PM_REMOVE and ">0"
 			{
 				TranslateMessage(&msg);
 				DispatchMessage(&msg);
 			}
-			if (GetForegroundWindow() != hwnd)
+			
+			/*if (GetForegroundWindow() != hwnd)
 			{
 				Sleep(10);
+			}
+			else
+			{
+				Sleep(1);
+			}*/
+
+			auto toSleep = std::chrono::milliseconds(16) - (std::chrono::system_clock::now() - last);
+			std::this_thread::sleep_for(toSleep);
+
+			while (last + std::chrono::milliseconds(16) < std::chrono::system_clock::now())
+			{
+				auto start = std::chrono::system_clock::now();
+				updateControl();
+				auto stop = std::chrono::system_clock::now();
+				updateTime = std::chrono::duration_cast<std::chrono::microseconds>(stop - start).count() / 1000.0;
+				//InvalidateRect(hwnd, NULL, FALSE);
+
+				last += std::chrono::milliseconds(16);
 			}
 			if (repaint == 1 || continues)
 			{
 				InvalidateRect(hwnd, NULL, FALSE);
 				repaint = 0;
 			}
-			updateControl();
+
+			
+			
 			if (close == 1)
 			{
 				break;
 			}
 		}
+	}
+
+	Frame* Frame::getFrame()
+	{
+		return this;
+	}
+
+	float Frame::getLastPaintTime()
+	{
+		return paintTime;
+	}
+
+	float Frame::getLastUpdateTime()
+	{
+		return updateTime;
 	}
 
 	void Frame::askRepaint()
@@ -143,12 +183,16 @@ namespace GLib
 
 		if (message == WM_PAINT)
 		{
+			auto start = std::chrono::system_clock::now();
 			frame->rt->BeginDraw();
 			frame->rt->SetTransform(D2D1::Matrix3x2F::Identity());
 			frame->rt->Clear(D2D1::ColorF(D2D1::ColorF::WhiteSmoke));
 			frame->renderControl(frame->rt, &frame->writer, &frame->color, 0, 0, frame->place);
 			frame->rt->EndDraw();
 			ValidateRect(hwnd, NULL);
+			auto stop = std::chrono::system_clock::now();
+			frame->paintTime = std::chrono::duration_cast<std::chrono::microseconds>(stop - start).count() / 1000;
+
 		}
 		else if (message == WM_CLOSE)
 		{
@@ -172,7 +216,11 @@ namespace GLib
 			frame->mouseTracked = true;
 		}
 
-		frame->mouseEventControl(frame, hwnd, message, wParam, lParam);
+		if (frame->mouseEventControl(frame, hwnd, message, wParam, lParam))
+		{
+			return true;
+		}
+
 		frame->winEventControl(frame, hwnd, message, wParam, lParam);
 
 		return DefWindowProc(hwnd, message, wParam, lParam);
@@ -180,6 +228,7 @@ namespace GLib
 	HRESULT Frame::createDeviceIndependentResources()
 	{
 		HRESULT hr = D2D1CreateFactory(D2D1_FACTORY_TYPE_MULTI_THREADED, &Direct2dFactory);
+		WriterFactory::setup();
 		return hr;
 	}
 	HRESULT Frame::createDeviceResources()
@@ -196,5 +245,29 @@ namespace GLib
 		writer.init(rt);
 
 		return hr;
+	}
+
+	void FrameStats::init()
+	{
+		frame = getFrame();
+
+		int xSize = place.right - place.left;
+		int ySize = place.bottom - place.top;
+		background = D2D1::RectF(0, 0, xSize, ySize);
+	}
+	void FrameStats::render(RT* rt, Writer* w, Color* c, D2D1_RECT_F& visibleRect)
+	{
+		rt->FillRectangle(background, c->get(C::Black));
+
+		if (frame != nullptr)
+		{
+			float printTime = frame->getLastPaintTime();
+			std::string printTimeText = "Frame time: " + std::to_string(printTime) + "ms";
+			w->print(printTimeText, c->get(C::White), WriterFactory::getFont(14), { 10,10,200,50 });
+
+			float updateTime = frame->getLastUpdateTime();
+			std::string updateTimeText = "Update time: " + std::to_string(updateTime) + "ms";
+			w->print(updateTimeText, c->get(C::White), WriterFactory::getFont(14), { 10,60,200,100 });
+		}
 	}
 }

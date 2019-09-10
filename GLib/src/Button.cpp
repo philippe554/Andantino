@@ -28,6 +28,8 @@ namespace GLib
 						SetCapture(Frame::getHWND());
 						isDragging = true;
 					}
+
+					return true;
 				}
 				else
 				{
@@ -35,6 +37,7 @@ namespace GLib
 					isDragging = false;
 				}
 			}
+			return false;
 		});
 
 		addMouseListener(WM_LBUTTONUP, [&](int x, int y)
@@ -53,6 +56,7 @@ namespace GLib
 					ReleaseCapture();
 				}
 			}
+			return false;
 		});
 
 		addMouseListener(WM_MOUSEMOVE, [&](int x, int y)
@@ -79,17 +83,20 @@ namespace GLib
 					moveVerticalPlace(y - verticalStart);
 				}
 			}
+			return false;
 		});
 
 		addMouseListener(WM_MOUSELEAVE, [&](int x, int y)
 		{
 			state = 0;
 			isDragging = false;
+			return false;
 		});
 
 		addMouseListener(WM_CAPTURECHANGED, [&](int x, int y)
 		{
 			isDragging = false;
+			return false;
 		});
 	}
 
@@ -115,7 +122,7 @@ namespace GLib
 			rt->FillRectangle(box, c->get(C::LightGray));
 		}
 
-		w->print(title, c->get(C::Black), w->get(20), titleBox);
+		w->print(title, c->get(C::Black), WriterFactory::getFont(20), titleBox);
 	}
 
 	void Button::setHorizontalDragable(int _maxLeft, int _maxRight, std::function<void(float)> _onHorizontalDrag)

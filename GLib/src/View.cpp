@@ -26,14 +26,19 @@ namespace GLib
 		}
 	}
 
-	void View::addMouseListener(int type, std::function<void(int, int)> f)
+	void View::addMouseListener(int type, std::function<bool(int, int)> f)
 	{
 		mouseFunctions[type] = f;
 	}
 
+	std::pair<int, int> View::getMousePosition()
+	{
+		return std::pair<int, int>(mouseX, mouseY);
+	}
+
 	void View::renderControl(RT * rt, Writer* w, Color* c, int x, int y, D2D1_RECT_F& visibleRect)
 	{
-		if (activateFlag || renderFlag)
+		if (activateFlag && renderFlag)
 		{
 			D2D1_RECT_F layerRect = { 0, 0, place.right - place.left , place.bottom - place.top };
 
@@ -59,7 +64,7 @@ namespace GLib
 
 	void View::updateControl()
 	{
-		if (activateFlag || updateFlag)
+		if (activateFlag && updateFlag)
 		{
 			update();
 
@@ -72,7 +77,7 @@ namespace GLib
 
 	void View::winEventControl(Frame * frame, HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
 	{
-		if (activateFlag || winEventFlag)
+		if (activateFlag && winEventFlag)
 		{
 			winEvent(frame, hwnd, message, wParam, lParam);
 
@@ -83,33 +88,70 @@ namespace GLib
 		}
 	}
 
-	void View::mouseEventControl(Frame * frame, HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
+	bool View::mouseEventControl(Frame * frame, HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
 	{
+		bool result = false;
+
 		if (message >= WM_MOUSEFIRST && message <= WM_MOUSELAST)
 		{
 			//Warning: Not all messages in this interval might store cursor position like this
 
-			forwardMouseEvent(message, GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam));
+			result |= forwardMouseEvent(message, GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam));
 		}
-		else if (message == WM_MOUSELEAVE || message == WM_CAPTURECHANGED)
+		else if (message == WM_MOUSELEAVE || message == WM_CAPTURECHANGED || message == WM_SETCURSOR)
 		{
-			forwardMouseEvent(message, 0, 0);
+			result |= forwardMouseEvent(message, 0, 0);
 		}
+
+		return result;
 	}
 
-	void View::forwardMouseEvent(int type, int x, int y)
+	View * View::getParentView()
 	{
-		if (activateFlag || mouseEventFlag)
+		return parentView;
+	}
+
+	Frame* View::getFrame()
+	{
+		if (parentView != nullptr)
+		{
+			return parentView->getFrame();
+		}
+		return nullptr;
+	}
+
+	void View::move(float x, float y)
+	{
+		place.left += x;
+		place.right += x;
+		place.top += y;
+		place.bottom += y;
+
+		forwardMouseEvent(WM_MOUSEMOVE, mouseX - x, mouseY - y);
+	}
+
+	bool View::forwardMouseEvent(int type, int x, int y)
+	{
+		bool result = false;
+
+		if (type == WM_MOUSEMOVE)
+		{
+			mouseX = x;
+			mouseY = y;
+		}
+		if (activateFlag && mouseEventFlag)
 		{
 			if (mouseFunctions.count(type) > 0)
 			{
-				mouseFunctions[type](x, y);
+				result |= mouseFunctions[type](x, y);
 			}
 
 			for (auto v : subViews)
 			{
-				v->forwardMouseEvent(type, x - v->place.left, y - v->place.top);
+				result |= v->forwardMouseEvent(type, x - v->place.left, y - v->place.top);
 			}
 		}
+
+		return result;
 	}
 }
