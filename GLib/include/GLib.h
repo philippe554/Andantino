@@ -148,6 +148,23 @@ namespace GLib
 		std::map<int, ID2D1SolidColorBrush*> data;
 	};
 
+	class Geometry
+	{
+	public:
+		Geometry(std::vector<std::pair<float, float>> data);
+		~Geometry();
+
+		static void setFactory(ID2D1Factory* factory);
+
+		void draw(RT* rt, ID2D1SolidColorBrush* brush, int width, float x, float y);
+		void fill(RT* rt, ID2D1SolidColorBrush* brush, float x, float y);
+
+	private:
+		static ID2D1Factory* Direct2dFactory;
+
+		ID2D1PathGeometry* geometry;
+	};
+
 	class Frame : public View
 	{
 	public:

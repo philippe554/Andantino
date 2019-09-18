@@ -229,6 +229,7 @@ namespace GLib
 	{
 		HRESULT hr = D2D1CreateFactory(D2D1_FACTORY_TYPE_MULTI_THREADED, &Direct2dFactory);
 		WriterFactory::setup();
+		Geometry::setFactory(Direct2dFactory);
 		return hr;
 	}
 	HRESULT Frame::createDeviceResources()

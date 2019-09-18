@@ -134,6 +134,7 @@
     <ClCompile Include="src\CheckBox.cpp" />
     <ClCompile Include="src\Color.cpp" />
     <ClCompile Include="src\Frame.cpp" />
+    <ClCompile Include="src\Geometry.cpp" />
     <ClCompile Include="src\MovingView.cpp" />
     <ClCompile Include="src\OutputView.cpp" />
     <ClCompile Include="src\Slider.cpp" />
