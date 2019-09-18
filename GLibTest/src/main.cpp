@@ -1,4 +1,4 @@
-#include "GLibMain.h"
+/*#include "GLibMain.h"
 
 #include "BoardView.h"
 
@@ -9,9 +9,10 @@ void GLibMain(GLib::Frame* frame)
 	frame->addView<GLib::MainBar>(0, 0, -1, 50, "Test Page");
 
 	frame->addView<BoardView>(0, 50);
-}
+}*/
 
-/*#include <iostream>
+#include <iostream>
+#include <chrono>
 
 #include "search.h"
 
@@ -37,29 +38,16 @@ void printState(State& state)
 int main()
 {
 	State state;
-
 	state.makeMove(5, 5);
+	long nodesVisited = 0;
 
-	printState(state);
+	auto start = std::chrono::steady_clock::now();
+	search(state, nodesVisited, 7);
+	auto end = std::chrono::steady_clock::now();
 
-	state.makeMove(4, 5);
-
-	printState(state);
-
-	state.makeMove(5, 6);
-
-	printState(state);
-
-	state.undoMove();
-
-	printState(state);
-
-	state.undoMove();
-
-	printState(state);
-
+	std::cout << "Ready: " << nodesVisited << " in " << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << "ms\n";
 	std::cin.get();
-}*/
+}
 
 
 

@@ -15,6 +15,9 @@ enum Side
 	right, topRight, topLeft, left, bottomLeft, bottomRight
 };
 
+#define P1Win 100
+#define P2Win -100
+
 Player getOtherPlayer(Player player)
 {
 	if (player == Player::P1)
@@ -296,12 +299,105 @@ public:
 
 	bool makesCircle(Location location)
 	{
+		std::array<bool, 6> covered = {false, false, false, false, false, false};
+		
+		for (int i = 0; i < 6; i++)
+		{
+			if (!covered[i])
+			{
+				Location current = location;
+				Side side = (Side)i;
+				int sum = 0;
+
+				if (staticMoves[current.x][current.y].player != staticMoves[board.neighbours[current.x][current.y][side].x][board.neighbours[current.x][current.y][side].y].player)
+				{
+					do
+					{
+						if (staticMoves[current.x][current.y].player == staticMoves[board.neighbours[current.x][current.y][(side+1) % 6].x][board.neighbours[current.x][current.y][(side + 1) % 6].y].player)
+						{
+							sum += 1;
+							current = { board.neighbours[current.x][current.y][(side + 1) % 6].x, board.neighbours[current.x][current.y][(side + 1) % 6].y };
+							side = (Side)((side + 5) % 6);
+						}
+						else
+						{
+							sum -= 1;
+							side = (Side)((side + 1) % 6);
+						}
+						if (current == location)
+						{
+							covered[side] = true;
+						}
+
+					} while (!(current == location) || side != i);
+
+					if (sum == 6)
+					{
+						bool containsOther = flowFillSearch({ board.neighbours[location.x][location.y][i].x, board.neighbours[location.x][location.y][i].y }, getOtherPlayer(staticMoves[location.x][location.y].player));
+						if (containsOther)
+						{
+							return true;
+						}
+					}
+				}
+				covered[i] = true;
+			}
+		}
+
 		return false;
+	}
+	bool flowFillSearch(Location location, Player player)
+	{
+		std::vector<Location> visited;
+		return flowFillSearchExpand(visited, location, player);
+	}
+	bool flowFillSearchExpand(std::vector<Location>& visited, Location location, Player player)
+	{
+		Player current = staticMoves[location.x][location.y].player;
+		if (current == player)
+		{
+			return true;
+		}
+		else if (current == Player::Empty)
+		{
+			visited.push_back(location);
+			for (auto neighbour : board.neighbours[location.x][location.y])
+			{
+				if (std::find(visited.begin(), visited.end(), neighbour) == visited.end())
+				{
+					bool result = flowFillSearchExpand(visited, neighbour, player);
+					if (result)
+					{
+						return true;
+					}
+				}
+			}
+			return false;
+		}
+		else
+		{
+			return false;
+		}
 	}
 
 	int evaluate()
 	{
-		return 0;
+		if (scores.size() > 0)
+		{
+			if (scores.back().hasCircleP1 || scores.back().straithP1 == 5)
+			{
+				return P1Win;
+			}
+			if (scores.back().hasCircleP2 || scores.back().straithP2 == 5)
+			{
+				return P2Win;
+			}
+			return 0;
+		}
+		else
+		{
+			return 0;
+		}
 	}
 
 	Player player = Player::P1;
@@ -317,11 +413,18 @@ public:
 	std::vector<Score> scores;
 };
 
-int search(State& state, int depth)
+int search(State& state, long& nodesVisited, int depth)
 {
+	nodesVisited++;
+
+	if (depth == 0)
+	{
+		return state.evaluate();
+	}
+
 	int score = state.evaluate();
 
-	if (score != 0)
+	if (score == P1Win || score == P2Win)
 	{
 		return score;
 	}
@@ -335,7 +438,7 @@ int search(State& state, int depth)
 			{
 				state.makeMove(state.freeSpots[i].location.x, state.freeSpots[i].location.y);
 
-				int t = search(state, depth + 1);
+				int t = search(state, nodesVisited, depth - 1);
 				if (t > bestScore) bestScore = t;
 
 				state.undoMove();
@@ -352,7 +455,7 @@ int search(State& state, int depth)
 			{
 				state.makeMove(state.freeSpots[i].location.x, state.freeSpots[i].location.y);
 
-				int t = search(state, depth + 1);
+				int t = search(state, nodesVisited, depth - 1);
 				if (t < bestScore) bestScore = t;
 
 				state.undoMove();
