@@ -301,7 +301,7 @@ public:
 
 	int evaluate()
 	{
-
+		return 0;
 	}
 
 	Player player = Player::P1;
