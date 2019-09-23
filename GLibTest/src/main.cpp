@@ -1,4 +1,4 @@
-/*#include "GLibMain.h"
+#include "GLibMain.h"
 
 #include "BoardView.h"
 
@@ -8,10 +8,19 @@ void GLibMain(GLib::Frame* frame)
 
 	frame->addView<GLib::MainBar>(0, 0, -1, 50, "Test Page");
 
-	frame->addView<BoardView>(0, 50);
-}*/
+	auto tabs = frame->addView<GLib::TabView>(0, 50);
 
-#include <iostream>
+	auto game = tabs->getNewTab("Game");
+	game->addView<BoardView>(0, 50);
+
+	tabs->getNewTab("Console")
+		->addView<GLib::MovingView>(0, 0, -1, -1, false, true)
+		->getMovingView()
+		->addView<GLib::OutputView>()
+		->setDefault();
+}
+
+/*#include <iostream>
 #include <chrono>
 
 #include "search.h"
@@ -38,16 +47,25 @@ void printState(State& state)
 int main()
 {
 	State state;
+	
 	state.makeMove(5, 5);
-	long nodesVisited = 0;
+	state.makeMove(4, 5);
 
-	auto start = std::chrono::steady_clock::now();
-	search(state, nodesVisited, 7);
-	auto end = std::chrono::steady_clock::now();
+	printState(state);
+	state.makeMove(5, 4);
+	state.undoMove();
+	printState(state);
 
-	std::cout << "Ready: " << nodesVisited << " in " << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << "ms\n";
+
+	//long nodesVisited = 0;
+
+	//auto start = std::chrono::steady_clock::now();
+	//std::cout << "result: " << alphaBeta(state, nodesVisited, 16, -999, 999) << "\n";
+	//auto end = std::chrono::steady_clock::now();
+
+	//std::cout << "Ready: " << nodesVisited << " nodes visited in " << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << "ms\n";
 	std::cin.get();
-}
+}*/
 
 
 

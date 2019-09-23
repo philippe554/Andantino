@@ -83,7 +83,7 @@ public:
 
 		addMouseListener(WM_LBUTTONDOWN, [&](int x, int y)
 		{
-			if (0 <= selected.first && selected.first < 10 && 0 <= selected.second && selected.second)
+			if (0 <= selected.first && selected.first < XSIZE && 0 <= selected.second && selected.second < YSIZE)
 			{
 				if (state.isFreeSpot(selected.first, selected.second))
 				{
@@ -100,15 +100,34 @@ public:
 				state.undoMove();
 			}
 		}, "Undo");
+
+		/*addView<GLib::Button>(550, 50, 100, 50, [&]()
+		{
+			Location location = alphaBetaHelper(state, 10);
+			state.makeMove(location.x, location.y);
+		}, "AlphaBeta");*/
+
+		addView<GLib::Button>(700, 50, 100, 50, [&]()
+		{
+			auto start = std::chrono::steady_clock::now();
+			long nodesVisited = 0;
+			auto [location, score] = alphaBeta(state, nodesVisited, 10);
+			state.makeMove(location.x, location.y);
+			auto end = std::chrono::steady_clock::now();
+
+			GLib::Out << "Alpha-beta nodes visited: " << nodesVisited 
+				<< " | " << score 
+				<< " | " << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << "ms\n";
+		}, "MonteCarlo");
 	}
 
 	void render(GLib::RT* rt, GLib::Writer* w, GLib::Color* c, D2D1_RECT_F& visibleRect)
 	{
-		for (int i = 0; i < 10; i++)
+		for (int i = 0; i < XSIZE; i++)
 		{
-			for (int j = 0; j < 10; j++)
+			for (int j = 0; j < YSIZE; j++)
 			{
-				if (state.staticMoves[i][j].player == Player::Empty)
+				if (state.staticMoves[i][j].player == Player::Empty && state.board.inBounds[i][j])
 				{
 					hexagon->fill(rt, c->get(255, 255, 255), hexXOffset + i * hexWidth + (j % 2 * hexWidth / 2), hexYOffset + j * hexHeight);
 				}
@@ -134,9 +153,9 @@ public:
 				w->print(std::to_string(state.staticMoves[i][j].freeSpotsIndex), c->get(0, 0, 0), GLib::WriterFactory::getFont(12), rect2);
 			}
 		}
-		for (int i = 0; i < 10; i++)
+		for (int i = 0; i < XSIZE; i++)
 		{
-			for (int j = 0; j < 10; j++)
+			for (int j = 0; j < YSIZE; j++)
 			{
 				hexagon->draw(rt, c->get(0, 0, 0), 2, hexXOffset + i * hexWidth + (j % 2 * hexWidth / 2), hexYOffset + j * hexHeight);
 			}
@@ -151,67 +170,6 @@ public:
 			w->print("Blue circle: " + std::to_string(state.scores.back().hasCircleP2), c->get(0, 0, 0), GLib::WriterFactory::getFont(14, 500, "Courier New"), { 400,160,600,180 });
 		}
 	}
-
-private:
-	/*bool checkEncircled(Player playerInside)
-	{
-		bool placeChecked[10][10];
-
-		for (int i = 1; i < 9; i++)
-		{
-			for (int j = 1; j < 9; j++)
-			{
-				if (state[i][j] == playerInside)
-				{
-					for (int i = 0; i < 10; i++)
-					{
-						for (int j = 0; j < 10; j++)
-						{
-							placeChecked[i][j] = false;
-						}
-					}
-
-					bool v = searchWall(placeChecked, i, j, playerInside);
-
-					if (!v)
-					{
-						return true;
-					}
-				}
-			}
-		}
-
-		return false;
-	}
-
-	bool searchWall(bool placeChecked[][10], int x, int y, Player player)
-	{
-		placeChecked[x][y] = true;
-
-		if (x == 0 || x == 9 || y == 0 || y == 9)
-		{
-			return true;
-		}
-
-		const auto& n = neighbours[x][y];
-		
-		for (auto place : n)
-		{
-			if (!placeChecked[place.first][place.second])
-			{
-				if (state[place.first][place.second] == Player::Empty || state[place.first][place.second] == player)
-				{
-					bool v = searchWall(placeChecked, place.first, place.second, player);
-					if (v)
-					{
-						return true;
-					}
-				}
-			}
-		}
-
-		return false;
-	}*/
 
 private:
 	D2D1_RECT_F background;

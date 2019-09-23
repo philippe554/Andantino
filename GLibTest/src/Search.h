@@ -4,6 +4,20 @@
 #include <stdexcept>
 #include <cassert>
 #include <array>
+#include <random>
+
+#include "GLib.h"
+
+#define CheckStatePersistence
+
+#ifdef CheckStatePersistence
+#define Check(x) x
+#else
+#define Check(x)
+#endif
+
+std::random_device dev;
+std::mt19937 rng(dev());
 
 enum Player
 {
@@ -15,8 +29,10 @@ enum Side
 	right, topRight, topLeft, left, bottomLeft, bottomRight
 };
 
-#define P1Win 100
-#define P2Win -100
+#define MaxScore 100
+
+#define XSIZE 12
+#define YSIZE 12
 
 Player getOtherPlayer(Player player)
 {
@@ -47,18 +63,36 @@ struct StaticLocation
 	int moveIndex;
 	int freeSpotsIndex;
 	int amountNeighbours;
+
+	bool operator==(const StaticLocation& other) const
+	{
+		return player == other.player 
+			&& moveIndex == other.moveIndex
+			&& freeSpotsIndex == other.freeSpotsIndex
+			&& amountNeighbours == other.amountNeighbours;
+	};
 };
 
 struct Move
 {
 	Location location;
 	Player player;
+
+	bool operator==(const Move& other) const
+	{
+		return location == other.location && player == other.player;
+	};
 };
 
 struct FreeSpot
 {
 	Location location;
 	int moveIndex;
+
+	bool operator==(const FreeSpot& other) const
+	{
+		return location == other.location && moveIndex == other.moveIndex;
+	};
 };
 
 struct Score
@@ -68,6 +102,14 @@ struct Score
 
 	bool hasCircleP1 = false;
 	bool hasCircleP2 = false;
+
+	bool operator==(const Score& other) const
+	{
+		return straithP1 == other.straithP1
+			&& straithP2 == other.straithP2
+			&& hasCircleP1 == other.hasCircleP1
+			&& hasCircleP2 == other.hasCircleP2;
+	};
 };
 
 class Board
@@ -80,12 +122,12 @@ public:
 
 	void calcNeighbours()
 	{
-		for (int i = 0; i < 10; i++)
+		for (int i = 0; i < XSIZE; i++)
 		{
-			for (int j = 0; j < 10; j++)
+			for (int j = 0; j < YSIZE; j++)
 			{
 				if (i > 0) neighbours[i][j][Side::left] = { i - 1, j };
-				if (i < 9) neighbours[i][j][Side::right] = { i + 1, j };
+				if (i < XSIZE-1) neighbours[i][j][Side::right] = { i + 1, j };
 
 				if (j > 0)
 				{
@@ -97,11 +139,11 @@ public:
 					else
 					{
 						neighbours[i][j][Side::topLeft] = { i, j - 1 };
-						if (i < 9) neighbours[i][j][Side::topRight] = { i + 1, j - 1 };
+						if (i < XSIZE-1) neighbours[i][j][Side::topRight] = { i + 1, j - 1 };
 					}
 				}
 
-				if (j < 9)
+				if (j < YSIZE-1)
 				{
 					if (j % 2 == 0)
 					{
@@ -111,14 +153,29 @@ public:
 					else
 					{
 						neighbours[i][j][Side::bottomLeft] = { i, j + 1 };
-						if (i < 9) neighbours[i][j][Side::bottomRight] = { i + 1, j + 1 };
+						if (i < XSIZE-1) neighbours[i][j][Side::bottomRight] = { i + 1, j + 1 };
 					}
+				}
+			}
+		}
+		for (int i = 0; i < XSIZE; i++)
+		{
+			for (int j = 0; j < YSIZE; j++)
+			{
+				if (i == 0 || j == 0 || i == XSIZE - 1 || j == YSIZE - 1)
+				{
+					inBounds[i][j] = false;
+				}
+				else
+				{
+					inBounds[i][j] = true;
 				}
 			}
 		}
 	};
 
-	std::array<Location, 6> neighbours[10][10];
+	std::array<Location, 6> neighbours[XSIZE][YSIZE];
+	bool inBounds[XSIZE][YSIZE];
 };
 
 class State
@@ -126,9 +183,9 @@ class State
 public:
 	State()
 	{
-		for (int i = 0; i < 10; i++)
+		for (int i = 0; i < XSIZE; i++)
 		{
-			for (int j = 0; j < 10; j++)
+			for (int j = 0; j < YSIZE; j++)
 			{
 				staticMoves[i][j] = { Player::Empty, -1, -1, 0};
 			}
@@ -164,14 +221,17 @@ public:
 		const auto& neighbours = board.neighbours[move.location.x][move.location.y];
 		for (const auto& location : neighbours)
 		{
-			staticMoves[location.x][location.y].amountNeighbours++;
-
-			if (staticMoves[location.x][location.y].player == Player::Empty)
+			if (board.inBounds[location.x][location.y])
 			{
-				if (moves.size() == 1 || staticMoves[location.x][location.y].amountNeighbours == 2)
+				staticMoves[location.x][location.y].amountNeighbours++;
+
+				if (staticMoves[location.x][location.y].player == Player::Empty)
 				{
-					freeSpots.push_back({ location, moveIndex });
-					staticMoves[location.x][location.y].freeSpotsIndex = freeSpots.size() - 1;
+					if (moves.size() == 1 || staticMoves[location.x][location.y].amountNeighbours == 2)
+					{
+						freeSpots.push_back({ location, moveIndex });
+						staticMoves[location.x][location.y].freeSpotsIndex = freeSpots.size() - 1;
+					}
 				}
 			}
 		}
@@ -205,7 +265,10 @@ public:
 				const auto& neighbours = board.neighbours[moves.back().location.x][moves.back().location.y];
 				for (const auto& location : neighbours)
 				{
-					staticMoves[location.x][location.y].amountNeighbours--;
+					if (board.inBounds[location.x][location.y])
+					{
+						staticMoves[location.x][location.y].amountNeighbours--;
+					}
 				}
 			}
 
@@ -213,9 +276,11 @@ public:
 				const auto& neighbours = board.neighbours[moves[0].location.x][moves[0].location.y];
 				for (const auto& location : neighbours)
 				{
-
-					freeSpots.push_back({ location, moveIndex });
-					staticMoves[location.x][location.y].freeSpotsIndex = freeSpots.size() - 1;
+					if (board.inBounds[location.x][location.y])
+					{
+						freeSpots.push_back({ location, 1});
+						staticMoves[location.x][location.y].freeSpotsIndex = freeSpots.size() - 1;
+					}
 				}
 			}
 		}
@@ -234,7 +299,10 @@ public:
 			const auto& neighbours = board.neighbours[moves.back().location.x][moves.back().location.y];
 			for (const auto& location : neighbours)
 			{
-				staticMoves[location.x][location.y].amountNeighbours--;
+				if (board.inBounds[location.x][location.y])
+				{
+					staticMoves[location.x][location.y].amountNeighbours--;
+				}
 			}
 		}
 
@@ -287,7 +355,7 @@ public:
 	}
 	int expandPartOfStraight(Location location, Side side, Player player)
 	{
-		if (staticMoves[location.x][location.y].player == player)
+		if (board.inBounds[location.x][location.y] && staticMoves[location.x][location.y].player == player)
 		{
 			return expandPartOfStraight(board.neighbours[location.x][location.y][side], side, player) + 1;
 		}
@@ -313,7 +381,8 @@ public:
 				{
 					do
 					{
-						if (staticMoves[current.x][current.y].player == staticMoves[board.neighbours[current.x][current.y][(side+1) % 6].x][board.neighbours[current.x][current.y][(side + 1) % 6].y].player)
+						if (board.inBounds[board.neighbours[current.x][current.y][(side + 1) % 6].x][board.neighbours[current.x][current.y][(side + 1) % 6].y]
+							&& staticMoves[current.x][current.y].player == staticMoves[board.neighbours[current.x][current.y][(side+1) % 6].x][board.neighbours[current.x][current.y][(side + 1) % 6].y].player)
 						{
 							sum += 1;
 							current = { board.neighbours[current.x][current.y][(side + 1) % 6].x, board.neighbours[current.x][current.y][(side + 1) % 6].y };
@@ -363,12 +432,15 @@ public:
 			visited.push_back(location);
 			for (auto neighbour : board.neighbours[location.x][location.y])
 			{
-				if (std::find(visited.begin(), visited.end(), neighbour) == visited.end())
+				if (board.inBounds[location.x][location.y])
 				{
-					bool result = flowFillSearchExpand(visited, neighbour, player);
-					if (result)
+					if (std::find(visited.begin(), visited.end(), neighbour) == visited.end())
 					{
-						return true;
+						bool result = flowFillSearchExpand(visited, neighbour, player);
+						if (result)
+						{
+							return true;
+						}
 					}
 				}
 			}
@@ -380,24 +452,72 @@ public:
 		}
 	}
 
-	int evaluate()
+	int evaluate(Player asPlayer)
 	{
 		if (scores.size() > 0)
 		{
-			if (scores.back().hasCircleP1 || scores.back().straithP1 == 5)
+			if (scores.back().hasCircleP1 || scores.back().straithP1 >= 5)
 			{
-				return P1Win;
+				if (asPlayer == Player::P1)
+				{
+					return MaxScore;
+				}
+				else
+				{
+					return -MaxScore;
+				}
 			}
-			if (scores.back().hasCircleP2 || scores.back().straithP2 == 5)
+			if (scores.back().hasCircleP2 || scores.back().straithP2 >= 5)
 			{
-				return P2Win;
+				if (asPlayer == Player::P1)
+				{
+					return -MaxScore;
+				}
+				else
+				{
+					return MaxScore;
+				}
 			}
-			return 0;
+			if (asPlayer == Player::P1)
+			{
+				return scores.back().straithP1;
+			}
+			else
+			{
+				return scores.back().straithP2;
+			}
 		}
 		else
 		{
 			return 0;
 		}
+	}
+	bool isEndGame()
+	{
+		return scores.back().hasCircleP1 || scores.back().straithP1 >= 5
+			|| scores.back().hasCircleP2 || scores.back().straithP2 >= 5;
+	}
+
+	bool operator==(const State& other) const
+	{
+		bool staticMovesEqual = true;
+
+		for (int i = 0; i < XSIZE; i++)
+		{
+			for (int j = 0; j < YSIZE; j++)
+			{
+				if (!(staticMoves[i][j] == other.staticMoves[i][j]))
+				{
+					staticMovesEqual = false;
+				}
+			}
+		}
+
+		return player == other.player 
+			&& moveIndex == other.moveIndex 
+			&& moves == other.moves 
+			&& freeSpots == other.freeSpots 
+			&& staticMovesEqual;
 	}
 
 	Player player = Player::P1;
@@ -406,61 +526,142 @@ public:
 	std::vector<Move> moves;
 	std::vector<FreeSpot> freeSpots;
 
-	StaticLocation staticMoves[10][10];
+	StaticLocation staticMoves[XSIZE][YSIZE];
 
 	Board board;
 
 	std::vector<Score> scores;
 };
 
-int search(State& state, long& nodesVisited, int depth)
+std::pair<int, int> alphaBetaBranch(State& state, long& nodesVisited, int depth, Player asPlayer, int alpha, int beta)
 {
 	nodesVisited++;
 
-	if (depth == 0)
+	if (depth == 0 || state.isEndGame())
 	{
-		return state.evaluate();
+		return { state.evaluate(asPlayer), 0 };
 	}
 
-	int score = state.evaluate();
-
-	if (score == P1Win || score == P2Win)
+	int score = -999;
+	int index = -1;
+	for (int i = 0; i < state.freeSpots.size(); i++)
 	{
-		return score;
-	}
-
-	if (state.player == Player::P1)
-	{
-		int bestScore = -999;
-		for (int i = 0; i < state.freeSpots.size(); i++)
+		if (state.freeSpots[i].moveIndex > 0)
 		{
-			if (state.freeSpots[i].moveIndex > 0)
+			state.makeMove(state.freeSpots[i].location.x, state.freeSpots[i].location.y);
+			auto[value, move] = alphaBetaBranch(state, nodesVisited, depth - 1, asPlayer, -beta, -alpha);
+			state.undoMove();
+
+			value = -value;
+
+			if (value > score)
 			{
-				state.makeMove(state.freeSpots[i].location.x, state.freeSpots[i].location.y);
+				score = value;
+				index = i;
+			}
+			if (score > alpha) alpha = score;
+			if (score >= beta) break;
+		}
+	}
+	return { score, index };
+}
+std::pair<Location, int> alphaBeta(State& state, long& nodesVisited, int depth)
+{
+	/*int maxIndex = -1;
+	int maxWins = -1;
+	Player asPlayer = state.player;
 
-				int t = search(state, nodesVisited, depth - 1);
-				if (t > bestScore) bestScore = t;
+	Check(auto stateCopy = state);
 
-				state.undoMove();
+	for (int i = 0; i < state.freeSpots.size(); i++)
+	{
+		if (state.freeSpots[i].moveIndex > 0)
+		{
+			state.makeMove(state.freeSpots[i].location.x, state.freeSpots[i].location.y);
+			auto [value, move] = alphaBetaBranch(state, nodesVisited, depth - 1, asPlayer, -999, 999);
+			state.undoMove();
+
+			GLib::Out << score << " ";
+
+			Check(assert(state == stateCopy));
+			
+			if (maxIndex == -1 || score > maxWins)
+			{
+				maxIndex = i;
+				maxWins = score;
 			}
 		}
-		return bestScore;
 	}
-	else
+
+	GLib::Out << "\n";*/
+
+	auto [value, move] = alphaBetaBranch(state, nodesVisited, depth - 1, state.player, -999, 999);
+	return { state.freeSpots[move].location, value };
+}
+
+
+int randomPlayout(State state, Player asPlayer)
+{
+	int score = state.evaluate(asPlayer);
+
+	while (score != -MaxScore && score != MaxScore)
 	{
-		int bestScore = 999;
-		for (int i = 0; i < state.freeSpots.size(); i++)
+		std::uniform_int_distribution<std::mt19937::result_type> dist6(0, state.freeSpots.size() - 1);
+
+		int i = dist6(rng);
+		int fails = 0;
+
+		while (state.freeSpots[i].moveIndex <= 0)
 		{
-			if (state.freeSpots[i].moveIndex > 0)
+			i = dist6(rng);
+			fails++;
+
+			if (fails > 50)
 			{
-				state.makeMove(state.freeSpots[i].location.x, state.freeSpots[i].location.y);
-
-				int t = search(state, nodesVisited, depth - 1);
-				if (t < bestScore) bestScore = t;
-
-				state.undoMove();
+				return 0;
 			}
 		}
-		return bestScore;
+
+		state.makeMove(state.freeSpots[i].location.x, state.freeSpots[i].location.y);
+		score = state.evaluate(asPlayer);
 	}
+
+	return state.evaluate(asPlayer);
+}
+std::pair<Location, int> monteCarloPlayer(State& state)
+{
+	int maxIndex = -1;
+	int maxWins = -1;
+
+	Check(auto stateCopy = state);
+
+	for (int i = 0; i < state.freeSpots.size(); i++)
+	{
+		if (state.freeSpots[i].moveIndex > 0)
+		{
+			int sum = 0;
+
+			state.makeMove(state.freeSpots[i].location.x, state.freeSpots[i].location.y);
+
+			for (int i = 0; i < 1000; i++)
+			{
+				if (randomPlayout(state, state.player) == MaxScore)
+				{
+					sum++;
+				}
+			}
+
+			state.undoMove();
+
+			Check(assert(state == stateCopy));
+			
+			if (maxIndex == -1 || sum > maxWins)
+			{
+				maxIndex = i;
+				maxWins = sum;
+			}
+		}
+	}
+
+	return { state.freeSpots[maxIndex].location, maxWins };
 }
