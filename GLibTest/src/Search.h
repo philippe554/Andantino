@@ -542,7 +542,7 @@ std::pair<int, int> alphaBetaBranch(State& state, long& nodesVisited, int depth,
 		return { state.evaluate(asPlayer), 0 };
 	}
 
-	int score = -999;
+	/*int score = -999;
 	int index = -1;
 	for (int i = 0; i < state.freeSpots.size(); i++)
 	{
@@ -562,7 +562,53 @@ std::pair<int, int> alphaBetaBranch(State& state, long& nodesVisited, int depth,
 			if (score > alpha) alpha = score;
 			if (score >= beta) break;
 		}
+	}*/
+
+	int index = -1;
+	int score;
+	if (state.player == asPlayer)
+	{
+		score = -999;
+		for (int i = 0; i < state.freeSpots.size(); i++)
+		{
+			if (state.freeSpots[i].moveIndex > 0)
+			{
+				state.makeMove(state.freeSpots[i].location.x, state.freeSpots[i].location.y);
+				auto [value, move] = alphaBetaBranch(state, nodesVisited, depth - 1, asPlayer, alpha, beta);
+				state.undoMove();
+
+				if (value > score)
+				{
+					score = value;
+					index = i;
+				}
+				if (score > alpha) alpha = score;
+				if (alpha >= beta) break;
+			}
+		}
 	}
+	else
+	{
+		score = 999;
+		for (int i = 0; i < state.freeSpots.size(); i++)
+		{
+			if (state.freeSpots[i].moveIndex > 0)
+			{
+				state.makeMove(state.freeSpots[i].location.x, state.freeSpots[i].location.y);
+				auto [value, move] = alphaBetaBranch(state, nodesVisited, depth - 1, asPlayer, alpha, beta);
+				state.undoMove();
+
+				if (value < score)
+				{
+					score = value;
+					index = i;
+				}
+				if (score < beta) beta = score;
+				if (alpha >= beta) break;
+			}
+		}
+	}
+
 	return { score, index };
 }
 std::pair<Location, int> alphaBeta(State& state, long& nodesVisited, int depth)
@@ -599,6 +645,18 @@ std::pair<Location, int> alphaBeta(State& state, long& nodesVisited, int depth)
 	return { state.freeSpots[move].location, value };
 }
 
+std::pair<Location, int> alphaBetaIterative(State& state, long& nodesVisited, int depth, int time)
+{
+	for (int i = 1; i <= depth; i++)
+	{
+		auto[location, score] = alphaBeta(state, nodesVisited, i);
+
+		if (score == MaxScore || i == depth)
+		{
+			return { location, score };
+		}
+	}
+}
 
 int randomPlayout(State state, Player asPlayer)
 {

@@ -93,7 +93,7 @@ public:
 			return true;
 		});
 
-		addView<GLib::Button>(400,50,100,50, [&]()
+		addView<GLib::Button>(500,50,100,50, [&]()
 		{
 			if (state.moves.size() > 1)
 			{
@@ -143,16 +143,25 @@ public:
 				{
 					hexagon->fill(rt, c->get(128, 128, 128), hexXOffset + i * hexWidth + (j % 2 * hexWidth / 2), hexYOffset + j * hexHeight);
 				}
-
-				D2D1_RECT_F rect1 = { hexXOffset + i * hexWidth + (j % 2 * hexWidth / 2), hexYOffset + j * hexHeight,
-									 hexXOffset + i * hexWidth + (j % 2 * hexWidth / 2) + hexWidth, hexYOffset + j * hexHeight + hexHeight };
-				w->print(std::to_string(state.staticMoves[i][j].amountNeighbours), c->get(0, 0, 0), GLib::WriterFactory::getFont(12), rect1);
-
-				D2D1_RECT_F rect2 = { hexXOffset + i * hexWidth + (j % 2 * hexWidth / 2) + hexWidth * 0.5, hexYOffset + j * hexHeight,
-									 hexXOffset + i * hexWidth + (j % 2 * hexWidth / 2) + hexWidth, hexYOffset + j * hexHeight + hexHeight };
-				w->print(std::to_string(state.staticMoves[i][j].freeSpotsIndex), c->get(0, 0, 0), GLib::WriterFactory::getFont(12), rect2);
 			}
 		}
+
+		if (state.staticMoves[state.moves.back().location.x][state.moves.back().location.y].player == Player::P1)
+		{
+			hexagon->fill(rt, c->get(255, 150, 150), 
+				hexXOffset + state.moves.back().location.x * hexWidth 
+				+ (state.moves.back().location.y % 2 * hexWidth / 2), 
+				hexYOffset + state.moves.back().location.y * hexHeight);
+		}
+		if (state.staticMoves[state.moves.back().location.x][state.moves.back().location.y].player == Player::P2)
+		{
+			hexagon->fill(rt, c->get(150, 150, 255), 
+				hexXOffset + state.moves.back().location.x * hexWidth 
+				+ (state.moves.back().location.y % 2 * hexWidth / 2), 
+				hexYOffset + state.moves.back().location.y * hexHeight);
+		}
+
+
 		for (int i = 0; i < XSIZE; i++)
 		{
 			for (int j = 0; j < YSIZE; j++)
@@ -163,11 +172,11 @@ public:
 
 		if (state.scores.size() > 0)
 		{
-			w->print("Red straigth: " + std::to_string(state.scores.back().straithP1), c->get(0, 0, 0), GLib::WriterFactory::getFont(14, 500, "Courier New"), { 400,100,600,120 });
-			w->print("Blue straigth: " + std::to_string(state.scores.back().straithP2), c->get(0, 0, 0), GLib::WriterFactory::getFont(14, 500, "Courier New"), { 400,120,600,140 });
+			w->print("Red straigth: " + std::to_string(state.scores.back().straithP1), c->get(0, 0, 0), GLib::WriterFactory::getFont(14, 500, "Courier New"), { 500,100,700,120 });
+			w->print("Blue straigth: " + std::to_string(state.scores.back().straithP2), c->get(0, 0, 0), GLib::WriterFactory::getFont(14, 500, "Courier New"), { 500,120,700,140 });
 
-			w->print("Red circle: " + std::to_string(state.scores.back().hasCircleP1), c->get(0, 0, 0), GLib::WriterFactory::getFont(14, 500, "Courier New"), { 400,140,600,160 });
-			w->print("Blue circle: " + std::to_string(state.scores.back().hasCircleP2), c->get(0, 0, 0), GLib::WriterFactory::getFont(14, 500, "Courier New"), { 400,160,600,180 });
+			w->print("Red circle: " + std::to_string(state.scores.back().hasCircleP1), c->get(0, 0, 0), GLib::WriterFactory::getFont(14, 500, "Courier New"), { 500,140,700,160 });
+			w->print("Blue circle: " + std::to_string(state.scores.back().hasCircleP2), c->get(0, 0, 0), GLib::WriterFactory::getFont(14, 500, "Courier New"), { 500,160,700,180 });
 		}
 	}
 
