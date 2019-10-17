@@ -16,7 +16,7 @@ public:
 		hexHeight = hexRadius + sin(PI / 6) * hexRadius;
 		hexWidth = cos(PI / 6) * hexRadius * 2;
 
-		state.makeMove(5, 5);
+		state.makeMove(10, 10);
 
 		std::vector<std::pair<float, float>> hexagonPoints;
 
@@ -129,44 +129,57 @@ public:
 			{
 				if (state.staticMoves[i][j].player == Player::Empty && state.board.inBounds[i][j])
 				{
-					hexagon->fill(rt, c->get(255, 255, 255), hexXOffset + i * hexWidth + (j % 2 * hexWidth / 2), hexYOffset + j * hexHeight);
+					hexagon->fill(rt, c->get(193, 154, 107), hexXOffset + i * hexWidth + (j % 2 * hexWidth / 2), hexYOffset + j * hexHeight);
 				}
 				if (state.staticMoves[i][j].player == Player::P1)
 				{
-					hexagon->fill(rt, c->get(255, 0, 0), hexXOffset + i * hexWidth + (j % 2 * hexWidth / 2), hexYOffset + j * hexHeight);
+					hexagon->fill(rt, c->get(50, 50, 50), hexXOffset + i * hexWidth + (j % 2 * hexWidth / 2), hexYOffset + j * hexHeight);
 				}
 				if (state.staticMoves[i][j].player == Player::P2)
 				{
-					hexagon->fill(rt, c->get(0, 0, 255), hexXOffset + i * hexWidth + (j % 2 * hexWidth / 2), hexYOffset + j * hexHeight);
+					hexagon->fill(rt, c->get(200, 200, 200), hexXOffset + i * hexWidth + (j % 2 * hexWidth / 2), hexYOffset + j * hexHeight);
 				}
 				if (state.isFreeSpot(i, j))
 				{
-					hexagon->fill(rt, c->get(128, 128, 128), hexXOffset + i * hexWidth + (j % 2 * hexWidth / 2), hexYOffset + j * hexHeight);
+					hexagon->fill(rt, c->get(193, 255, 107), hexXOffset + i * hexWidth + (j % 2 * hexWidth / 2), hexYOffset + j * hexHeight);
 				}
 			}
 		}
 
 		if (state.staticMoves[state.moves.back().location.x][state.moves.back().location.y].player == Player::P1)
 		{
-			hexagon->fill(rt, c->get(255, 150, 150), 
+			hexagon->fill(rt, c->get(0,0,0), 
 				hexXOffset + state.moves.back().location.x * hexWidth 
 				+ (state.moves.back().location.y % 2 * hexWidth / 2), 
 				hexYOffset + state.moves.back().location.y * hexHeight);
 		}
 		if (state.staticMoves[state.moves.back().location.x][state.moves.back().location.y].player == Player::P2)
 		{
-			hexagon->fill(rt, c->get(150, 150, 255), 
+			hexagon->fill(rt, c->get(255,255,255), 
 				hexXOffset + state.moves.back().location.x * hexWidth 
 				+ (state.moves.back().location.y % 2 * hexWidth / 2), 
 				hexYOffset + state.moves.back().location.y * hexHeight);
 		}
 
+		for (int i = 0; i < XSIZE; i++)
+		{
+			for (int j = 0; j < YSIZE; j++)
+			{
+				if (!state.board.inBounds[i][j])
+				{
+					hexagon->draw(rt, c->get(150, 150, 150), 2, hexXOffset + i * hexWidth + (j % 2 * hexWidth / 2), hexYOffset + j * hexHeight);
+				}
+			}
+		}
 
 		for (int i = 0; i < XSIZE; i++)
 		{
 			for (int j = 0; j < YSIZE; j++)
 			{
-				hexagon->draw(rt, c->get(0, 0, 0), 2, hexXOffset + i * hexWidth + (j % 2 * hexWidth / 2), hexYOffset + j * hexHeight);
+				if (state.board.inBounds[i][j])
+				{
+					hexagon->draw(rt, c->get(0, 0, 0), 2, hexXOffset + i * hexWidth + (j % 2 * hexWidth / 2), hexYOffset + j * hexHeight);
+				}
 			}
 		}
 

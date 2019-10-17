@@ -5,6 +5,7 @@
 #include <cassert>
 #include <array>
 #include <random>
+#include <map>
 
 #include "GLib.h"
 
@@ -31,8 +32,8 @@ enum Side
 
 #define MaxScore 100
 
-#define XSIZE 12
-#define YSIZE 12
+#define XSIZE 21
+#define YSIZE 21
 
 Player getOtherPlayer(Player player)
 {
@@ -162,21 +163,88 @@ public:
 		{
 			for (int j = 0; j < YSIZE; j++)
 			{
-				if (i == 0 || j == 0 || i == XSIZE - 1 || j == YSIZE - 1)
+				inBounds[i][j] = true;
+
+				if (j == 0 || j == YSIZE - 1) // top and bottom row
 				{
 					inBounds[i][j] = false;
 				}
-				else
+
+				if ((j % 2 == 0 && i + j/2 < 6) || (j % 2 == 1 && i + j/2 < 5)) // top left
 				{
-					inBounds[i][j] = true;
+					inBounds[i][j] = false;
+				}
+
+				if (i - j / 2 < -4) // bottom left
+				{
+					inBounds[i][j] = false;
+				}
+
+				if (j / 2 - i < -14) // top right
+				{
+					inBounds[i][j] = false;
+				}
+
+				if ((j % 2 == 0 && i + j / 2 > 24) || (j % 2 == 1 && i + j / 2 > 23)) // bottom right
+				{
+					inBounds[i][j] = false;
+				}
+
+				if (inBounds[i][j])
+				{
+					linearIndex[i][j] = amount;
+					amount++;
 				}
 			}
 		}
+
+		// 271
 	};
 
 	std::array<Location, 6> neighbours[XSIZE][YSIZE];
+	int linearIndex[XSIZE][YSIZE];
 	bool inBounds[XSIZE][YSIZE];
+	int amount = 0;
 };
+
+class StateHash
+{
+public:
+	StateHash() : data({0,0,0,0,0,0,0,0,0,0})
+	{
+	}
+
+	void set(Player p, int bit)
+	{
+		int index = bit / 64;
+		bit -= index * 64;
+		if (p == Player::P2)
+		{
+			index += 5;
+		}
+
+		data[index] |= 1ull << bit;
+	}
+
+	void unset(Player p, int bit)
+	{
+		int index = bit / 64;
+		bit -= index * 64;
+		if (p == Player::P2)
+		{
+			index += 5;
+		}
+
+		data[index] &= ~(1ull << bit);
+	}
+
+	std::array<unsigned long long, 10> data;
+};
+
+bool operator<(const StateHash& left, const StateHash& right)
+{
+	return left.data < right.data;
+}
 
 class State
 {
@@ -191,8 +259,8 @@ public:
 			}
 		}
 
-		freeSpots.push_back({ {5, 5}, 0 });
-		staticMoves[5][5].freeSpotsIndex = 0;
+		freeSpots.push_back({ {10, 10}, 0 });
+		staticMoves[10][10].freeSpotsIndex = 0;
 	}
 
 	void makeMove(int x, int y)
@@ -201,6 +269,7 @@ public:
 		moves.push_back(move);
 		staticMoves[move.location.x][move.location.y].player = move.player;
 		staticMoves[move.location.x][move.location.y].moveIndex = moves.size() - 1;
+		stateHash.set(player, board.linearIndex[x][y]);
 
 		const int freeSpotIndex = staticMoves[move.location.x][move.location.y].freeSpotsIndex;
 		assert(freeSpotIndex >= 0);
@@ -309,6 +378,7 @@ public:
 		moveIndex--;
 		player = getOtherPlayer(player);
 
+		stateHash.unset(player, board.linearIndex[moves.back().location.x][moves.back().location.y]);
 		staticMoves[moves.back().location.x][moves.back().location.y].player = Player::Empty;
 		staticMoves[moves.back().location.x][moves.back().location.y].moveIndex = -1;
 		moves.pop_back();
@@ -531,9 +601,11 @@ public:
 	Board board;
 
 	std::vector<Score> scores;
+
+	StateHash stateHash;
 };
 
-std::pair<int, int> alphaBetaBranch(State& state, long& nodesVisited, int depth, Player asPlayer, int alpha, int beta)
+std::pair<int, int> alphaBetaBranch(State& state, std::map<StateHash, std::pair<int, int>>& transpositionTable, long& nodesVisited, int depth, Player asPlayer, int alpha, int beta)
 {
 	nodesVisited++;
 
@@ -574,7 +646,23 @@ std::pair<int, int> alphaBetaBranch(State& state, long& nodesVisited, int depth,
 			if (state.freeSpots[i].moveIndex > 0)
 			{
 				state.makeMove(state.freeSpots[i].location.x, state.freeSpots[i].location.y);
-				auto [value, move] = alphaBetaBranch(state, nodesVisited, depth - 1, asPlayer, alpha, beta);
+
+				std::pair<int, int> result;
+				auto cache = transpositionTable.find(state.stateHash);
+				if (cache != transpositionTable.end())
+				{
+					result = cache->second;
+				}
+				else
+				{
+					result = alphaBetaBranch(state, transpositionTable, nodesVisited, depth - 1, asPlayer, alpha, beta);
+					if (depth >= 3)
+					{
+						transpositionTable[state.stateHash] = result;
+					}
+				}
+				int value = result.first;
+
 				state.undoMove();
 
 				if (value > score)
@@ -595,7 +683,22 @@ std::pair<int, int> alphaBetaBranch(State& state, long& nodesVisited, int depth,
 			if (state.freeSpots[i].moveIndex > 0)
 			{
 				state.makeMove(state.freeSpots[i].location.x, state.freeSpots[i].location.y);
-				auto [value, move] = alphaBetaBranch(state, nodesVisited, depth - 1, asPlayer, alpha, beta);
+				//auto [value, move] = alphaBetaBranch(state, transpositionTable, nodesVisited, depth - 1, asPlayer, alpha, beta);
+				std::pair<int, int> result;
+				auto cache = transpositionTable.find(state.stateHash);
+				if (cache != transpositionTable.end())
+				{
+					result = cache->second;
+				}
+				else
+				{
+					result = alphaBetaBranch(state, transpositionTable, nodesVisited, depth - 1, asPlayer, alpha, beta);
+					if (depth >= 3)
+					{
+						transpositionTable[state.stateHash] = result;
+					}
+				}
+				int value = result.first;
 				state.undoMove();
 
 				if (value < score)
@@ -641,7 +744,8 @@ std::pair<Location, int> alphaBeta(State& state, long& nodesVisited, int depth)
 
 	GLib::Out << "\n";*/
 
-	auto [value, move] = alphaBetaBranch(state, nodesVisited, depth - 1, state.player, -999, 999);
+	std::map<StateHash, std::pair<int, int>> transpositionTable;
+	auto [value, move] = alphaBetaBranch(state, transpositionTable, nodesVisited, depth - 1, state.player, -999, 999);
 	return { state.freeSpots[move].location, value };
 }
 
