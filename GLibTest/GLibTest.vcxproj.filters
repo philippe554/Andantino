@@ -26,5 +26,8 @@
     <ClInclude Include="src\Search.h">
       <Filter>Source Files</Filter>
     </ClInclude>
+    <ClInclude Include="src\SearchControl.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

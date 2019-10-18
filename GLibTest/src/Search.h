@@ -5,6 +5,7 @@
 #include <cassert>
 #include <array>
 #include <random>
+#include <sstream> 
 #include <map>
 
 #include "GLib.h"
@@ -28,6 +29,11 @@ enum Player
 enum Side
 {
 	right, topRight, topLeft, left, bottomLeft, bottomRight
+};
+
+enum ValueType
+{
+	Exact, Lower, Upper
 };
 
 #define MaxScore 100
@@ -238,6 +244,18 @@ public:
 		data[index] &= ~(1ull << bit);
 	}
 
+	bool get(Player p, int bit)
+	{
+		int index = bit / 64;
+		bit -= index * 64;
+		if (p == Player::P2)
+		{
+			index += 5;
+		}
+
+		return data[index] & (1ull << bit);
+	}
+
 	std::array<unsigned long long, 10> data;
 };
 
@@ -245,6 +263,14 @@ bool operator<(const StateHash& left, const StateHash& right)
 {
 	return left.data < right.data;
 }
+
+struct StateTreeResult
+{
+	int value;
+	ValueType type;
+	int move;
+	int nodesVisited;
+};
 
 class State
 {
@@ -551,10 +577,12 @@ public:
 			if (asPlayer == Player::P1)
 			{
 				return scores.back().straithP1;
+				return 0;
 			}
 			else
 			{
 				return scores.back().straithP2;
+				return 0;
 			}
 		}
 		else
@@ -605,38 +633,64 @@ public:
 	StateHash stateHash;
 };
 
-std::pair<int, int> alphaBetaBranch(State& state, std::map<StateHash, std::pair<int, int>>& transpositionTable, long& nodesVisited, int depth, Player asPlayer, int alpha, int beta)
+StateTreeResult alphaBeta(State& state, std::map<StateHash, StateTreeResult>& transpositionTable, int depth, Player asPlayer, int alpha, int beta, bool& stop)
 {
-	nodesVisited++;
+	long nodesVisited = 0;
 
 	if (depth == 0 || state.isEndGame())
 	{
-		return { state.evaluate(asPlayer), 0 };
+		return { state.evaluate(state.player), ValueType::Exact, 0, 1 };
 	}
 
-	/*int score = -999;
+	int olda = alpha;
+	bool cacheFound = false;
+	auto cache = transpositionTable.find(state.stateHash);
+	if (cache != transpositionTable.end())
+	{
+		cacheFound = true;
+		StateTreeResult result = cache->second;
+		if (result.type == ValueType::Exact)
+		{
+			return result;
+		}
+		else if (result.type == ValueType::Lower)
+		{
+			alpha = max(alpha, result.value);
+		}
+		else if (result.type == ValueType::Upper)
+		{
+			beta = min(beta, result.value);
+		}
+		if (alpha >= beta)
+		{
+			return result;
+		}
+	}
+
+	int score = -999;
 	int index = -1;
-	for (int i = 0; i < state.freeSpots.size(); i++)
+	for (int i = 0; i < state.freeSpots.size() && !stop; i++)
 	{
 		if (state.freeSpots[i].moveIndex > 0)
 		{
 			state.makeMove(state.freeSpots[i].location.x, state.freeSpots[i].location.y);
-			auto[value, move] = alphaBetaBranch(state, nodesVisited, depth - 1, asPlayer, -beta, -alpha);
+			auto result = alphaBeta(state, transpositionTable, depth - 1, asPlayer, -beta, -alpha, stop);
 			state.undoMove();
 
-			value = -value;
+			result.value = -result.value;
+			nodesVisited += result.nodesVisited;
 
-			if (value > score)
+			if (result.value > score)
 			{
-				score = value;
+				score = result.value;
 				index = i;
 			}
 			if (score > alpha) alpha = score;
 			if (score >= beta) break;
 		}
-	}*/
+	}
 
-	int index = -1;
+	/*int index = -1;
 	int score;
 	if (state.player == asPlayer)
 	{
@@ -646,28 +700,14 @@ std::pair<int, int> alphaBetaBranch(State& state, std::map<StateHash, std::pair<
 			if (state.freeSpots[i].moveIndex > 0)
 			{
 				state.makeMove(state.freeSpots[i].location.x, state.freeSpots[i].location.y);
-
-				std::pair<int, int> result;
-				auto cache = transpositionTable.find(state.stateHash);
-				if (cache != transpositionTable.end())
-				{
-					result = cache->second;
-				}
-				else
-				{
-					result = alphaBetaBranch(state, transpositionTable, nodesVisited, depth - 1, asPlayer, alpha, beta);
-					if (depth >= 3)
-					{
-						transpositionTable[state.stateHash] = result;
-					}
-				}
-				int value = result.first;
-
+				auto result = alphaBetaBranch(state, transpositionTable, depth - 1, asPlayer, alpha, beta);
 				state.undoMove();
 
-				if (value > score)
+				nodesVisited += result.nodesVisited;
+
+				if (result.value > score)
 				{
-					score = value;
+					score = result.value;
 					index = i;
 				}
 				if (score > alpha) alpha = score;
@@ -683,70 +723,56 @@ std::pair<int, int> alphaBetaBranch(State& state, std::map<StateHash, std::pair<
 			if (state.freeSpots[i].moveIndex > 0)
 			{
 				state.makeMove(state.freeSpots[i].location.x, state.freeSpots[i].location.y);
-				//auto [value, move] = alphaBetaBranch(state, transpositionTable, nodesVisited, depth - 1, asPlayer, alpha, beta);
-				std::pair<int, int> result;
-				auto cache = transpositionTable.find(state.stateHash);
-				if (cache != transpositionTable.end())
-				{
-					result = cache->second;
-				}
-				else
-				{
-					result = alphaBetaBranch(state, transpositionTable, nodesVisited, depth - 1, asPlayer, alpha, beta);
-					if (depth >= 3)
-					{
-						transpositionTable[state.stateHash] = result;
-					}
-				}
-				int value = result.first;
+				auto result = alphaBetaBranch(state, transpositionTable, depth - 1, asPlayer, alpha, beta);
 				state.undoMove();
 
-				if (value < score)
+				nodesVisited += result.nodesVisited;
+
+				if (result.value < score)
 				{
-					score = value;
+					score = result.value;
 					index = i;
 				}
 				if (score < beta) beta = score;
 				if (alpha >= beta) break;
 			}
 		}
-	}
+	}*/
 
-	return { score, index };
-}
-std::pair<Location, int> alphaBeta(State& state, long& nodesVisited, int depth)
-{
-	/*int maxIndex = -1;
-	int maxWins = -1;
-	Player asPlayer = state.player;
-
-	Check(auto stateCopy = state);
-
-	for (int i = 0; i < state.freeSpots.size(); i++)
+	if (!cacheFound && depth >= 3 && transpositionTable.size() <= 100000000)
 	{
-		if (state.freeSpots[i].moveIndex > 0)
+		StateTreeResult result = { score, ValueType::Exact, index, nodesVisited };
+
+		if (score <= olda)
 		{
-			state.makeMove(state.freeSpots[i].location.x, state.freeSpots[i].location.y);
-			auto [value, move] = alphaBetaBranch(state, nodesVisited, depth - 1, asPlayer, -999, 999);
-			state.undoMove();
-
-			GLib::Out << score << " ";
-
-			Check(assert(state == stateCopy));
-			
-			if (maxIndex == -1 || score > maxWins)
-			{
-				maxIndex = i;
-				maxWins = score;
-			}
+			result.type = ValueType::Upper;
 		}
+		else if (score >= beta)
+		{
+			result.type = ValueType::Lower;
+		}
+		else
+		{
+			result.type = ValueType::Exact;
+		}
+
+		transpositionTable[state.stateHash] = result;
 	}
 
-	GLib::Out << "\n";*/
+	return { score, ValueType::Exact, index, nodesVisited };
+}
 
-	std::map<StateHash, std::pair<int, int>> transpositionTable;
-	auto [value, move] = alphaBetaBranch(state, transpositionTable, nodesVisited, depth - 1, state.player, -999, 999);
-	return { state.freeSpots[move].location, value };
+
+
+
+
+
+/*std::pair<Location, int> alphaBeta(State& state, long& nodesVisited, int depth, bool& stop)
+{
+	std::map<StateHash, StateTreeResult> transpositionTable;
+	StateTreeResult result = alphaBetaBranch(state, transpositionTable, depth, state.player, -999, 999, stop);
+	nodesVisited = result.nodesVisited;
+	return { state.freeSpots[result.move].location, result.value };
 }
 
 std::pair<Location, int> alphaBetaIterative(State& state, long& nodesVisited, int depth, int time)
@@ -826,4 +852,4 @@ std::pair<Location, int> monteCarloPlayer(State& state)
 	}
 
 	return { state.freeSpots[maxIndex].location, maxWins };
-}
+}*/

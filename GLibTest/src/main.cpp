@@ -10,10 +10,10 @@ void GLibMain(GLib::Frame* frame)
 
 	auto tabs = frame->addView<GLib::TabView>(0, 50);
 
-	auto game = tabs->getNewTab("Game");
+	auto game = tabs->getNewTab(" Game");
 	game->addView<BoardView>(0, 50);
 
-	tabs->getNewTab("Console")
+	tabs->getNewTab(" Console")
 		->addView<GLib::MovingView>(0, 0, -1, -1, false, true)
 		->getMovingView()
 		->addView<GLib::OutputView>()
