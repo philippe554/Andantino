@@ -12,7 +12,7 @@ public:
 		maxDepth = _maxDepth;
 		start = std::chrono::steady_clock::now();
 
-		worker = std::make_unique<std::thread>(&SearchControl::workerFunction, this, state);
+		worker = std::make_unique<std::thread>(&SearchControl::workerFunction, this, std::ref(state));
 	}
 	~SearchControl()
 	{

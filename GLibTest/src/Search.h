@@ -289,6 +289,8 @@ public:
 		staticMoves[10][10].freeSpotsIndex = 0;
 	}
 
+	State(const State& other) = delete;
+
 	void makeMove(int x, int y)
 	{
 		Move move = { {x, y}, player };
@@ -410,7 +412,7 @@ public:
 		moves.pop_back();
 	}
 
-	bool isFreeSpot(int x, int y)
+	bool isFreeSpot(int x, int y) const
 	{
 		const int freeSpotIndex = staticMoves[x][y].freeSpotsIndex;
 		if (freeSpotIndex >= 0)
@@ -424,7 +426,7 @@ public:
 		return false;
 	}
 
-	int partOfStraight(Location location)
+	int partOfStraight(Location location) const
 	{
 		int maxStraithLocation = 0;
 		int straight = 0;
@@ -449,7 +451,7 @@ public:
 
 		return maxStraithLocation;
 	}
-	int expandPartOfStraight(Location location, Side side, Player player)
+	int expandPartOfStraight(Location location, Side side, Player player) const
 	{
 		if (board.inBounds[location.x][location.y] && staticMoves[location.x][location.y].player == player)
 		{
@@ -461,7 +463,7 @@ public:
 		}
 	}
 
-	bool makesCircle(Location location)
+	bool makesCircle(Location location) const
 	{
 		std::array<bool, 6> covered = {false, false, false, false, false, false};
 		
@@ -511,12 +513,12 @@ public:
 
 		return false;
 	}
-	bool flowFillSearch(Location location, Player player)
+	bool flowFillSearch(Location location, Player player) const
 	{
 		std::vector<Location> visited;
 		return flowFillSearchExpand(visited, location, player);
 	}
-	bool flowFillSearchExpand(std::vector<Location>& visited, Location location, Player player)
+	bool flowFillSearchExpand(std::vector<Location>& visited, Location location, Player player) const
 	{
 		Player current = staticMoves[location.x][location.y].player;
 		if (current == player)
@@ -548,7 +550,7 @@ public:
 		}
 	}
 
-	int evaluate(Player asPlayer)
+	int evaluate(Player asPlayer) const
 	{
 		if (scores.size() > 0)
 		{
@@ -590,7 +592,7 @@ public:
 			return 0;
 		}
 	}
-	bool isEndGame()
+	bool isEndGame() const
 	{
 		return scores.back().hasCircleP1 || scores.back().straithP1 >= 5
 			|| scores.back().hasCircleP2 || scores.back().straithP2 >= 5;

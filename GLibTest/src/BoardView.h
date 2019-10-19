@@ -136,7 +136,6 @@ public:
 					hexagon->fill(rt, c->get(193, 154, 107), hexXOffset + i * hexWidth + (j % 2 * hexWidth / 2), hexYOffset + j * hexHeight);
 				}
 				if (state.staticMoves[i][j].player == Player::P1)
-				//if(state.stateHash.get(Player::P1, state.board.linearIndex[i][j]))
 				{
 					hexagon->fill(rt, c->get(50, 50, 50), hexXOffset + i * hexWidth + (j % 2 * hexWidth / 2), hexYOffset + j * hexHeight);
 				}

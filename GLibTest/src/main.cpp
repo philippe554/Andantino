@@ -6,7 +6,7 @@ void GLibMain(GLib::Frame* frame)
 {
 	frame->init("Test", 1000, 800);
 
-	frame->addView<GLib::MainBar>(0, 0, -1, 50, "Test Page");
+	frame->addView<GLib::MainBar>(0, 0, -1, 50, "Andantino");
 
 	auto tabs = frame->addView<GLib::TabView>(0, 50);
 
