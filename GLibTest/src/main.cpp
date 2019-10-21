@@ -1,5 +1,4 @@
 #include "GLibMain.h"
-
 #include "BoardView.h"
 
 void GLibMain(GLib::Frame* frame)
@@ -19,53 +18,99 @@ void GLibMain(GLib::Frame* frame)
 		->addView<GLib::OutputView>()
 		->setDefault();
 }
-
-/*#include <iostream>
+/*
+#include <iostream>
 #include <chrono>
+#include <thread>
+#include <random>
 
 #include "search.h"
+#include "SearchControl.h"
 
-void printState(State& state)
+Player simulate(int t1, int t2, int& p1moves, int&p2moves, int& p1sumdepth, int& p2sumdepth)
 {
-	std::cout << "STATE: next player: " << (state.player == Player::P1 ? "P1" : "P2") << "\n";
+	State state;
 
-	std::cout << "Moves: ";
-	for (auto move : state.moves)
-	{
-		std::cout << "[" << move.location.x << "," << move.location.y << "," << (move.player == Player::P1 ? "P1" : "P2") << "] ";
-	}
-	std::cout << "\n";
+	state.makeMove(10, 10);
 
-	std::cout << "Free: ";
-	for (auto spot : state.freeSpots)
+	std::random_device rd;
+	std::mt19937 gen(rd());
+	std::uniform_int_distribution<> dis(1, 4);
+
+	int counter = 0;
+	for (int j = 0; j < 5; j++)
 	{
-		std::cout << "[" << spot.location.x << "," << spot.location.y << "," << spot.moveIndex << "] ";
+		for (int i = 0; i < state.freeSpots.size(); i++)
+		{
+			if (state.freeSpots[i].moveIndex > 0)
+			{
+				if (dis(gen) == 1)
+				{
+					state.makeMove(state.freeSpots[i].location.x, state.freeSpots[i].location.y);
+					counter++;
+					break;
+				}
+			}
+		}
 	}
-	std::cout << "\n\n";
+
+	counter = 0;
+	while (!state.isEndGame() && counter < 200)
+	{
+		auto searchControl = std::make_unique<SearchControl>(state, state.player == Player::P1 ? t1 : t2, 20);
+
+		while (!searchControl->isFinished())
+		{
+			searchControl->tick();
+			std::this_thread::sleep_for(std::chrono::milliseconds(1));
+		}
+
+		auto result = searchControl->getResult();
+
+		if (state.player == Player::P1)
+		{
+			p1moves++;
+			p1sumdepth += result.depth;
+		}
+		else
+		{
+			p2moves++;
+			p2sumdepth += result.depth;
+		}
+
+		auto location = state.freeSpots[result.move].location;
+		state.makeMove(location.x, location.y);
+		counter++;
+	}
+
+	if (counter == 200)
+	{
+		std::cout << "Long game: " << counter;
+	}
+
+	return getOtherPlayer(state.player);
 }
 
 int main()
 {
-	State state;
-	
-	state.makeMove(5, 5);
-	state.makeMove(4, 5);
+	int p1moves = 0;
+	int p2moves = 0;
+	int p1sumdepth = 0;
+	int p2sumdepth = 0;
 
-	printState(state);
-	state.makeMove(5, 4);
-	state.undoMove();
-	printState(state);
+	int wins[2] = {0, 0};
+
+	for (int i = 0; i < 100000; i++)
+	{
+		auto r = simulate(1000, 1, p1moves, p2moves, p1sumdepth, p2sumdepth);
+		wins[r]++;
+		std::cout << i << " : " << wins[0] << " <-> " << wins[1] << " : " << float(wins[0]) / float(wins[1])
+			<< " (" << float(p1sumdepth) / float(p1moves) << "|" << float(p2sumdepth) / float(p2moves) << ")\n";
+	}
 
 
-	//long nodesVisited = 0;
-
-	//auto start = std::chrono::steady_clock::now();
-	//std::cout << "result: " << alphaBeta(state, nodesVisited, 16, -999, 999) << "\n";
-	//auto end = std::chrono::steady_clock::now();
-
-	//std::cout << "Ready: " << nodesVisited << " nodes visited in " << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << "ms\n";
 	std::cin.get();
-}*/
+}
 
-
+*/
 

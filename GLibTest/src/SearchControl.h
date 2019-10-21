@@ -57,10 +57,11 @@ public:
 private:
 	void workerFunction(State& state)
 	{
+		std::map<StateHash, StateTreeResult> transpositionTable;
+
 		for (int i = 1; i <= maxDepth; i++)
 		{
-			std::map<StateHash, StateTreeResult> transpositionTable;
-			StateTreeResult newResult = alphaBeta(state, transpositionTable, i, state.player, -999, 999, stop);
+			StateTreeResult newResult = alphaBeta(state, transpositionTable, i, state.player, -999, 999, stop, false);
 
 			if (stop)
 			{

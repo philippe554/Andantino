@@ -269,7 +269,9 @@ struct StateTreeResult
 	int value;
 	ValueType type;
 	int move;
+	Location moveLocation;
 	int nodesVisited;
+	int depth;
 };
 
 class State
@@ -635,115 +637,136 @@ public:
 	StateHash stateHash;
 };
 
-StateTreeResult alphaBeta(State& state, std::map<StateHash, StateTreeResult>& transpositionTable, int depth, Player asPlayer, int alpha, int beta, bool& stop)
+StateTreeResult alphaBeta(State& state, std::map<StateHash, StateTreeResult>& transpositionTable, int depth, Player asPlayer, int alpha, int beta, bool& stop, bool cutDone)
 {
 	long nodesVisited = 0;
 
-	if (depth == 0 || state.isEndGame())
+	if (depth <= 0 || state.isEndGame())
 	{
 		return { state.evaluate(state.player), ValueType::Exact, 0, 1 };
 	}
 
 	int olda = alpha;
+	int bestMove = -1;
 	bool cacheFound = false;
 	auto cache = transpositionTable.find(state.stateHash);
 	if (cache != transpositionTable.end())
 	{
 		cacheFound = true;
 		StateTreeResult result = cache->second;
-		if (result.type == ValueType::Exact)
+		if (result.depth >= depth)
 		{
-			return result;
-		}
-		else if (result.type == ValueType::Lower)
-		{
-			alpha = max(alpha, result.value);
-		}
-		else if (result.type == ValueType::Upper)
-		{
-			beta = min(beta, result.value);
-		}
-		if (alpha >= beta)
-		{
-			return result;
-		}
-	}
-
-	int score = -999;
-	int index = -1;
-	for (int i = 0; i < state.freeSpots.size() && !stop; i++)
-	{
-		if (state.freeSpots[i].moveIndex > 0)
-		{
-			state.makeMove(state.freeSpots[i].location.x, state.freeSpots[i].location.y);
-			auto result = alphaBeta(state, transpositionTable, depth - 1, asPlayer, -beta, -alpha, stop);
-			state.undoMove();
-
-			result.value = -result.value;
-			nodesVisited += result.nodesVisited;
-
-			if (result.value > score)
+			if (result.type == ValueType::Exact)
 			{
-				score = result.value;
-				index = i;
+				return result;
 			}
-			if (score > alpha) alpha = score;
-			if (score >= beta) break;
+			else if (result.type == ValueType::Lower)
+			{
+				alpha = max(alpha, result.value);
+			}
+			else if (result.type == ValueType::Upper)
+			{
+				beta = min(beta, result.value);
+			}
+			if (alpha >= beta)
+			{
+				return result;
+			}
+		}
+		else
+		{
+			/*for (int i = 0; i < state.freeSpots.size(); i++)
+			{
+				if (state.freeSpots[i].moveIndex > 0 && state.freeSpots[i].location == result.moveLocation)
+				{
+					bestMove = i;
+				}
+			}
+			assert(bestMove != -1);*/
 		}
 	}
 
-	/*int index = -1;
-	int score;
-	if (state.player == asPlayer)
+	bool localStop = false;
+
+	/*if (!cutDone && depth >= 3)
 	{
-		score = -999;
-		for (int i = 0; i < state.freeSpots.size(); i++)
+		int total = 0;
+		int over = 0;
+		for (int i = 0; i < state.freeSpots.size() && !stop && total < 6; i++)
 		{
 			if (state.freeSpots[i].moveIndex > 0)
 			{
 				state.makeMove(state.freeSpots[i].location.x, state.freeSpots[i].location.y);
-				auto result = alphaBetaBranch(state, transpositionTable, depth - 1, asPlayer, alpha, beta);
+				auto result = alphaBeta(state, transpositionTable, depth - 1 - 3, asPlayer, -beta, -alpha, stop, true);
 				state.undoMove();
 
+				result.value = -result.value;
 				nodesVisited += result.nodesVisited;
 
+				if (result.value >= beta)
+				{
+					over++;
+					if (over >= 2)
+					{
+						return { beta, ValueType::Upper, 0, 1 };
+					}
+				}
+			}
+		}
+	}*/
+
+	int score = -999;
+	int index = -1;
+	/*if (!localStop && bestMove != -1)
+	{
+		state.makeMove(state.freeSpots[bestMove].location.x, state.freeSpots[bestMove].location.y);
+		auto result = alphaBeta(state, transpositionTable, depth - 1, asPlayer, -beta, -alpha, stop, cutDone);
+		state.undoMove();
+
+		result.value = -result.value;
+		nodesVisited += result.nodesVisited;
+
+		if (result.value > score)
+		{
+			score = result.value;
+			index = bestMove;
+		}
+		if (score > alpha) alpha = score;
+		if (score >= beta) localStop = true;
+	}*/
+
+	if(!localStop)
+	{
+		for (int i = 0; i < state.freeSpots.size() && !stop; i++)
+		//for (int i = state.freeSpots.size() - 1; i >= 0 && !stop; i--)
+		{
+			if (state.freeSpots[i].moveIndex > 0 && i != bestMove)
+			{
+				state.makeMove(state.freeSpots[i].location.x, state.freeSpots[i].location.y);
+				auto result = alphaBeta(state, transpositionTable, depth - 1, asPlayer, -beta, -alpha, stop, cutDone);
+				state.undoMove();
+
+				result.value = -result.value;
+				nodesVisited += result.nodesVisited;
+
+				if (result.value == score)
+				{
+					index = min(index, i);
+				}
 				if (result.value > score)
 				{
 					score = result.value;
 					index = i;
 				}
 				if (score > alpha) alpha = score;
-				if (alpha >= beta) break;
+				if (score >= beta) break;
 			}
 		}
 	}
-	else
+
+	if (cacheFound || (depth >= 2 && transpositionTable.size() <= 10000000))
 	{
-		score = 999;
-		for (int i = 0; i < state.freeSpots.size(); i++)
-		{
-			if (state.freeSpots[i].moveIndex > 0)
-			{
-				state.makeMove(state.freeSpots[i].location.x, state.freeSpots[i].location.y);
-				auto result = alphaBetaBranch(state, transpositionTable, depth - 1, asPlayer, alpha, beta);
-				state.undoMove();
-
-				nodesVisited += result.nodesVisited;
-
-				if (result.value < score)
-				{
-					score = result.value;
-					index = i;
-				}
-				if (score < beta) beta = score;
-				if (alpha >= beta) break;
-			}
-		}
-	}*/
-
-	if (!cacheFound && depth >= 3 && transpositionTable.size() <= 100000000)
-	{
-		StateTreeResult result = { score, ValueType::Exact, index, nodesVisited };
+		StateTreeResult result = { score, ValueType::Exact, index, state.freeSpots[index].location, nodesVisited, depth };
 
 		if (score <= olda)
 		{
@@ -761,7 +784,7 @@ StateTreeResult alphaBeta(State& state, std::map<StateHash, StateTreeResult>& tr
 		transpositionTable[state.stateHash] = result;
 	}
 
-	return { score, ValueType::Exact, index, nodesVisited };
+	return { score, ValueType::Exact, index, state.freeSpots[index].location, nodesVisited, depth};
 }
 
 

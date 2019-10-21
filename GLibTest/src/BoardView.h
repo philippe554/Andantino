@@ -111,7 +111,7 @@ public:
 				{
 					if (!searchControl)
 					{
-						searchControl = std::make_unique<SearchControl>(state, 3000, 20);
+						searchControl = std::make_unique<SearchControl>(state, state.player == Player::P1 ? 1 : 1000, 20);
 					}
 				}
 		}, " Search");
