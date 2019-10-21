@@ -109,6 +109,9 @@ struct Score
 
 	bool hasCircleP1 = false;
 	bool hasCircleP2 = false;
+	
+	int hasPossibleStraithP1 = 0;
+	int hasPossibleStraithP2 = 0;
 
 	bool operator==(const Score& other) const
 	{
@@ -125,6 +128,9 @@ public:
 	Board()
 	{
 		calcNeighbours();
+		calcBounds();
+		calcLinearIndex();
+		calcRows();
 	}
 
 	void calcNeighbours()
@@ -165,6 +171,9 @@ public:
 				}
 			}
 		}
+	};
+	void calcBounds()
+	{
 		for (int i = 0; i < XSIZE; i++)
 		{
 			for (int j = 0; j < YSIZE; j++)
@@ -176,7 +185,7 @@ public:
 					inBounds[i][j] = false;
 				}
 
-				if ((j % 2 == 0 && i + j/2 < 6) || (j % 2 == 1 && i + j/2 < 5)) // top left
+				if ((j % 2 == 0 && i + j / 2 < 6) || (j % 2 == 1 && i + j / 2 < 5)) // top left
 				{
 					inBounds[i][j] = false;
 				}
@@ -195,22 +204,60 @@ public:
 				{
 					inBounds[i][j] = false;
 				}
-
+			}
+		}		
+	}
+	void calcLinearIndex()
+	{
+		// 271
+		for (int i = 0; i < XSIZE; i++)
+		{
+			for (int j = 0; j < YSIZE; j++)
+			{
 				if (inBounds[i][j])
 				{
 					linearIndex[i][j] = amount;
+					reverseLinearIndex.push_back({ i, j });
 					amount++;
 				}
 			}
 		}
-
-		// 271
-	};
+	}
+	void calcRows()
+	{
+		// 585
+		for (auto location : reverseLinearIndex)
+		{
+			for (auto dir : { left, bottomLeft, bottomRight })
+			{
+				std::vector<Location> row;
+				row.push_back(location);
+				while (row.size() < 5)
+				{
+					Location next = neighbours[row.back().x][row.back().y][dir];
+					if (!inBounds[next.x][next.y])
+					{
+						break;
+					}
+					row.push_back(next);
+				}
+				if (row.size() == 5)
+				{
+					allRows.push_back(row);
+				}
+			}
+		}
+	}
 
 	std::array<Location, 6> neighbours[XSIZE][YSIZE];
 	int linearIndex[XSIZE][YSIZE];
+	std::vector<Location> reverseLinearIndex;
+
 	bool inBounds[XSIZE][YSIZE];
 	int amount = 0;
+
+	std::vector<std::vector<Location>> allRows;
+	std::map<int,int> moveRowReduction[XSIZE][YSIZE];
 };
 
 class StateHash
@@ -336,11 +383,23 @@ public:
 		}
 
 		Score newScore;
-		if (scores.size() > 0) newScore = scores.back();
+		if (scores.size() > 0)
+		{
+			newScore = scores.back();
+		}
+		else
+		{
+			newScore.hasPossibleStraithP1 = board.allRows.size();
+			newScore.hasPossibleStraithP2 = board.allRows.size();
+		}
 
 		int straight = partOfStraight(move.location);
 		if (move.player == Player::P1 && straight > newScore.straithP1) newScore.straithP1 = straight;
 		if (move.player == Player::P2 && straight > newScore.straithP2) newScore.straithP2 = straight;
+
+		int blocking = locationBlockingStraith(move.location);
+		if (move.player == Player::P1) newScore.hasPossibleStraithP2 -= blocking;
+		if (move.player == Player::P2) newScore.hasPossibleStraithP1 -= blocking;
 
 		if (move.player == Player::P1 && makesCircle(move.location)) newScore.hasCircleP1 = true;
 		if (move.player == Player::P2 && makesCircle(move.location)) newScore.hasCircleP2 = true;
@@ -458,6 +517,46 @@ public:
 		if (board.inBounds[location.x][location.y] && staticMoves[location.x][location.y].player == player)
 		{
 			return expandPartOfStraight(board.neighbours[location.x][location.y][side], side, player) + 1;
+		}
+		else
+		{
+			return 0;
+		}
+	}
+
+	int locationBlockingStraith(Location location) const
+	{
+		int blocking = 0;
+		int straight = 0;
+
+		straight = 1
+			+ expandPartOfStraightInverse(board.neighbours[location.x][location.y][left], left, staticMoves[location.x][location.y].player, 4)
+			+ expandPartOfStraightInverse(board.neighbours[location.x][location.y][right], right, staticMoves[location.x][location.y].player, 4)
+			- 4;
+
+		if (straight > 0) blocking += straight;
+
+		straight = 1
+			+ expandPartOfStraightInverse(board.neighbours[location.x][location.y][topLeft], topLeft, staticMoves[location.x][location.y].player, 4)
+			+ expandPartOfStraightInverse(board.neighbours[location.x][location.y][bottomRight], bottomRight, staticMoves[location.x][location.y].player, 4)
+			- 4;
+
+		if (straight > 0) blocking += straight;
+
+		straight = 1
+			+ expandPartOfStraightInverse(board.neighbours[location.x][location.y][topRight], topRight, staticMoves[location.x][location.y].player, 4)
+			+ expandPartOfStraightInverse(board.neighbours[location.x][location.y][bottomLeft], bottomLeft, staticMoves[location.x][location.y].player, 4)
+			- 4;
+
+		if (straight > 0) blocking += straight;
+
+		return blocking;
+	}
+	int expandPartOfStraightInverse(Location location, Side side, Player player, int limit) const
+	{
+		if (board.inBounds[location.x][location.y] && staticMoves[location.x][location.y].player != player && limit > 0)
+		{
+			return expandPartOfStraightInverse(board.neighbours[location.x][location.y][side], side, player, limit - 1) + 1;
 		}
 		else
 		{

@@ -193,6 +193,8 @@ public:
 			w->print("White straigth: " + std::to_string(state.scores.back().straithP2), c->get(0, 0, 0), GLib::WriterFactory::getFont(14), { 800,320,1000,340 });
 			w->print("Black circle: " + std::to_string(state.scores.back().hasCircleP1), c->get(0, 0, 0), GLib::WriterFactory::getFont(14), { 800,340,1000,360 });
 			w->print("White circle: " + std::to_string(state.scores.back().hasCircleP2), c->get(0, 0, 0), GLib::WriterFactory::getFont(14), { 800,360,1000,380 });
+			w->print("Black possible rows: " + std::to_string(state.scores.back().hasPossibleStraithP1), c->get(0, 0, 0), GLib::WriterFactory::getFont(14), { 800,380,1000,400 });
+			w->print("White possible rows: " + std::to_string(state.scores.back().hasPossibleStraithP2), c->get(0, 0, 0), GLib::WriterFactory::getFont(14), { 800,400,1000,420 });
 		}
 
 		if (searchControl)
