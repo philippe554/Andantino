@@ -36,7 +36,7 @@ enum ValueType
 	Exact, Lower, Upper
 };
 
-#define MaxScore 100
+#define MaxScore 800
 
 #define XSIZE 21
 #define YSIZE 21
@@ -303,6 +303,20 @@ public:
 		return data[index] & (1ull << bit);
 	}
 
+	bool operator==(const StateHash& other)const
+	{
+		bool equal = true;
+		for (int i = 0; i < 10; i++)
+		{
+			if (data[i] != other.data[i])
+			{
+				equal = false;
+				break;
+			}
+		}
+		return equal;
+	}
+
 	std::array<unsigned long long, 10> data;
 };
 
@@ -311,14 +325,34 @@ bool operator<(const StateHash& left, const StateHash& right)
 	return left.data < right.data;
 }
 
+class Hasher {
+public:
+	unsigned long long operator()(const StateHash& other) const
+	{
+		unsigned long long hash = 0;
+		for (int i = 0; i < 10; i++)
+		{
+			hash ^= other.data[i];
+		}
+		return hash;
+	}
+};
+
 struct StateTreeResult
 {
+	StateTreeResult(int _value, int _nodesVisited = 1, int _move = -1)
+	{
+		value = _value;
+		nodesVisited = _nodesVisited;
+		move = _move;
+	}
+
 	int value;
-	ValueType type;
-	int move;
-	Location moveLocation;
-	int nodesVisited;
-	int depth;
+	ValueType type = ValueType::Exact;
+	int move = -1;
+	Location moveLocation = {0, 0};
+	int nodesVisited = 1;
+	int depth = 0;
 };
 
 class State
@@ -651,13 +685,13 @@ public:
 		}
 	}
 
-	int evaluate(Player asPlayer) const
+	int evaluate() const
 	{
 		if (scores.size() > 0)
 		{
 			if (scores.back().hasCircleP1 || scores.back().straithP1 >= 5)
 			{
-				if (asPlayer == Player::P1)
+				if (player == Player::P1)
 				{
 					return MaxScore;
 				}
@@ -668,7 +702,7 @@ public:
 			}
 			if (scores.back().hasCircleP2 || scores.back().straithP2 >= 5)
 			{
-				if (asPlayer == Player::P1)
+				if (player == Player::P1)
 				{
 					return -MaxScore;
 				}
@@ -677,15 +711,14 @@ public:
 					return MaxScore;
 				}
 			}
-			if (asPlayer == Player::P1)
+
+			if (player == Player::P1)
 			{
-				return scores.back().straithP1;
-				return 0;
+				return 10 * (scores.back().straithP1 - scores.back().straithP2) + scores.back().hasPossibleStraithP1 - scores.back().hasPossibleStraithP2;
 			}
 			else
 			{
-				return scores.back().straithP2;
-				return 0;
+				return 10 * (scores.back().straithP2 - scores.back().straithP1) + scores.back().hasPossibleStraithP2 - scores.back().hasPossibleStraithP1;
 			}
 		}
 		else
@@ -736,13 +769,13 @@ public:
 	StateHash stateHash;
 };
 
-StateTreeResult alphaBeta(State& state, std::map<StateHash, StateTreeResult>& transpositionTable, int depth, Player asPlayer, int alpha, int beta, bool& stop, bool cutDone)
+StateTreeResult alphaBeta(State& state, std::map<StateHash, StateTreeResult>& transpositionTable, int depth, int alpha, int beta, bool& stop)
 {
 	long nodesVisited = 0;
 
 	if (depth <= 0 || state.isEndGame())
 	{
-		return { state.evaluate(state.player), ValueType::Exact, 0, 1 };
+		return StateTreeResult(state.evaluate());
 	}
 
 	int olda = alpha;
@@ -774,52 +807,24 @@ StateTreeResult alphaBeta(State& state, std::map<StateHash, StateTreeResult>& tr
 		}
 		else
 		{
-			/*for (int i = 0; i < state.freeSpots.size(); i++)
+			for (int i = 0; i < state.freeSpots.size(); i++)
 			{
 				if (state.freeSpots[i].moveIndex > 0 && state.freeSpots[i].location == result.moveLocation)
 				{
 					bestMove = i;
 				}
 			}
-			assert(bestMove != -1);*/
+			assert(bestMove != -1);
 		}
 	}
 
 	bool localStop = false;
-
-	/*if (!cutDone && depth >= 3)
-	{
-		int total = 0;
-		int over = 0;
-		for (int i = 0; i < state.freeSpots.size() && !stop && total < 6; i++)
-		{
-			if (state.freeSpots[i].moveIndex > 0)
-			{
-				state.makeMove(state.freeSpots[i].location.x, state.freeSpots[i].location.y);
-				auto result = alphaBeta(state, transpositionTable, depth - 1 - 3, asPlayer, -beta, -alpha, stop, true);
-				state.undoMove();
-
-				result.value = -result.value;
-				nodesVisited += result.nodesVisited;
-
-				if (result.value >= beta)
-				{
-					over++;
-					if (over >= 2)
-					{
-						return { beta, ValueType::Upper, 0, 1 };
-					}
-				}
-			}
-		}
-	}*/
-
 	int score = -999;
 	int index = -1;
-	/*if (!localStop && bestMove != -1)
+	if (bestMove != -1)
 	{
 		state.makeMove(state.freeSpots[bestMove].location.x, state.freeSpots[bestMove].location.y);
-		auto result = alphaBeta(state, transpositionTable, depth - 1, asPlayer, -beta, -alpha, stop, cutDone);
+		auto result = alphaBeta(state, transpositionTable, depth - 1, -beta, -alpha, stop);
 		state.undoMove();
 
 		result.value = -result.value;
@@ -832,26 +837,21 @@ StateTreeResult alphaBeta(State& state, std::map<StateHash, StateTreeResult>& tr
 		}
 		if (score > alpha) alpha = score;
 		if (score >= beta) localStop = true;
-	}*/
+	}
 
 	if(!localStop)
 	{
 		for (int i = 0; i < state.freeSpots.size() && !stop; i++)
-		//for (int i = state.freeSpots.size() - 1; i >= 0 && !stop; i--)
 		{
 			if (state.freeSpots[i].moveIndex > 0 && i != bestMove)
 			{
 				state.makeMove(state.freeSpots[i].location.x, state.freeSpots[i].location.y);
-				auto result = alphaBeta(state, transpositionTable, depth - 1, asPlayer, -beta, -alpha, stop, cutDone);
+				auto result = alphaBeta(state, transpositionTable, depth - 1, -beta, -alpha, stop);
 				state.undoMove();
 
 				result.value = -result.value;
 				nodesVisited += result.nodesVisited;
 
-				if (result.value == score)
-				{
-					index = min(index, i);
-				}
 				if (result.value > score)
 				{
 					score = result.value;
@@ -863,9 +863,12 @@ StateTreeResult alphaBeta(State& state, std::map<StateHash, StateTreeResult>& tr
 		}
 	}
 
-	if (cacheFound || (depth >= 2 && transpositionTable.size() <= 10000000))
+	if (cacheFound || (depth >= 2 && transpositionTable.size() <= 100000000))
 	{
-		StateTreeResult result = { score, ValueType::Exact, index, state.freeSpots[index].location, nodesVisited, depth };
+		StateTreeResult result(score, nodesVisited, index);
+		result.move = index;
+		result.moveLocation = state.freeSpots[index].location;
+		result.depth = depth;
 
 		if (score <= olda)
 		{
@@ -880,100 +883,8 @@ StateTreeResult alphaBeta(State& state, std::map<StateHash, StateTreeResult>& tr
 			result.type = ValueType::Exact;
 		}
 
-		transpositionTable[state.stateHash] = result;
+		transpositionTable.emplace(state.stateHash, result);
 	}
 
-	return { score, ValueType::Exact, index, state.freeSpots[index].location, nodesVisited, depth};
+	return StateTreeResult(score, nodesVisited, index);
 }
-
-
-
-
-
-
-/*std::pair<Location, int> alphaBeta(State& state, long& nodesVisited, int depth, bool& stop)
-{
-	std::map<StateHash, StateTreeResult> transpositionTable;
-	StateTreeResult result = alphaBetaBranch(state, transpositionTable, depth, state.player, -999, 999, stop);
-	nodesVisited = result.nodesVisited;
-	return { state.freeSpots[result.move].location, result.value };
-}
-
-std::pair<Location, int> alphaBetaIterative(State& state, long& nodesVisited, int depth, int time)
-{
-	for (int i = 1; i <= depth; i++)
-	{
-		auto[location, score] = alphaBeta(state, nodesVisited, i);
-
-		if (score == MaxScore || i == depth)
-		{
-			return { location, score };
-		}
-	}
-}
-
-int randomPlayout(State state, Player asPlayer)
-{
-	int score = state.evaluate(asPlayer);
-
-	while (score != -MaxScore && score != MaxScore)
-	{
-		std::uniform_int_distribution<std::mt19937::result_type> dist6(0, state.freeSpots.size() - 1);
-
-		int i = dist6(rng);
-		int fails = 0;
-
-		while (state.freeSpots[i].moveIndex <= 0)
-		{
-			i = dist6(rng);
-			fails++;
-
-			if (fails > 50)
-			{
-				return 0;
-			}
-		}
-
-		state.makeMove(state.freeSpots[i].location.x, state.freeSpots[i].location.y);
-		score = state.evaluate(asPlayer);
-	}
-
-	return state.evaluate(asPlayer);
-}
-std::pair<Location, int> monteCarloPlayer(State& state)
-{
-	int maxIndex = -1;
-	int maxWins = -1;
-
-	Check(auto stateCopy = state);
-
-	for (int i = 0; i < state.freeSpots.size(); i++)
-	{
-		if (state.freeSpots[i].moveIndex > 0)
-		{
-			int sum = 0;
-
-			state.makeMove(state.freeSpots[i].location.x, state.freeSpots[i].location.y);
-
-			for (int i = 0; i < 1000; i++)
-			{
-				if (randomPlayout(state, state.player) == MaxScore)
-				{
-					sum++;
-				}
-			}
-
-			state.undoMove();
-
-			Check(assert(state == stateCopy));
-			
-			if (maxIndex == -1 || sum > maxWins)
-			{
-				maxIndex = i;
-				maxWins = sum;
-			}
-		}
-	}
-
-	return { state.freeSpots[maxIndex].location, maxWins };
-}*/

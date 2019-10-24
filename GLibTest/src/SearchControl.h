@@ -7,10 +7,20 @@ class SearchControl
 {
 public:
 	SearchControl(State& state, int _maxTime, int _maxDepth)
+		: result(-9999, 0, -1)
 	{
 		maxTime = _maxTime;
 		maxDepth = _maxDepth;
 		start = std::chrono::steady_clock::now();
+
+		for (int i = 0; i < state.freeSpots.size() && !stop; i++)
+		{
+			if (state.freeSpots[i].moveIndex > 0)
+			{
+				result.move = i;
+				break;
+			}
+		}
 
 		worker = std::make_unique<std::thread>(&SearchControl::workerFunction, this, std::ref(state));
 	}
@@ -61,7 +71,7 @@ private:
 
 		for (int i = 1; i <= maxDepth; i++)
 		{
-			StateTreeResult newResult = alphaBeta(state, transpositionTable, i, state.player, -999, 999, stop, false);
+			StateTreeResult newResult = alphaBeta(state, transpositionTable, i, -999, 999, stop);
 
 			if (stop)
 			{

@@ -38,7 +38,7 @@ Player simulate(int t1, int t2, int& p1moves, int&p2moves, int& p1sumdepth, int&
 	std::uniform_int_distribution<> dis(1, 4);
 
 	int counter = 0;
-	for (int j = 0; j < 5; j++)
+	while(counter < 4)
 	{
 		for (int i = 0; i < state.freeSpots.size(); i++)
 		{
@@ -62,7 +62,7 @@ Player simulate(int t1, int t2, int& p1moves, int&p2moves, int& p1sumdepth, int&
 		while (!searchControl->isFinished())
 		{
 			searchControl->tick();
-			std::this_thread::sleep_for(std::chrono::milliseconds(1));
+			std::this_thread::sleep_for(std::chrono::microseconds(10));
 		}
 
 		auto result = searchControl->getResult();
@@ -102,15 +102,14 @@ int main()
 
 	for (int i = 0; i < 100000; i++)
 	{
-		auto r = simulate(1000, 1, p1moves, p2moves, p1sumdepth, p2sumdepth);
+		auto r = simulate(100, 100, p1moves, p2moves, p1sumdepth, p2sumdepth);
 		wins[r]++;
-		std::cout << i << " : " << wins[0] << " <-> " << wins[1] << " : " << float(wins[0]) / float(wins[1])
+		std::cout << i << " : " << wins[0] << " <-> " << wins[1] << " : " << float(wins[0]) / float(wins[0] + wins[1])
 			<< " (" << float(p1sumdepth) / float(p1moves) << "|" << float(p2sumdepth) / float(p2moves) << ")\n";
 	}
 
 
 	std::cin.get();
 }
-
 */
 
