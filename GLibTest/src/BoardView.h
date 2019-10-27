@@ -111,7 +111,7 @@ public:
 				{
 					if (!searchControl)
 					{
-						searchControl = std::make_unique<SearchControl>(state, 3000, 20);
+						searchControl = std::make_unique<SearchControl>(state, 6000, 20);
 					}
 				}
 		}, " Search");
@@ -224,7 +224,7 @@ public:
 			{
 				auto result = searchControl->getResult();
 				totalCalculationTime += searchControl->getTotalTime();
-				GLib::Out << "Virtual nodes visited: " << result.nodesVisited
+				GLib::Out << "Nodes visited: " << result.nodesVisited
 					<< ",   Predicted score: " << result.value
 					<< ",   Total time: " << searchControl->getTotalTime() << "ms"
 					<< ",   Level reached: " << searchControl->getLevelReached() << "\n";

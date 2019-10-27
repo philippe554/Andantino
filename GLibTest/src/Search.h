@@ -18,9 +18,6 @@
 #define Check(x)
 #endif
 
-std::random_device dev;
-std::mt19937 rng(dev());
-
 enum Player
 {
 	P1, P2, Empty
@@ -257,7 +254,6 @@ public:
 	int amount = 0;
 
 	std::vector<std::vector<Location>> allRows;
-	std::map<int,int> moveRowReduction[XSIZE][YSIZE];
 };
 
 class StateHash
@@ -303,20 +299,6 @@ public:
 		return data[index] & (1ull << bit);
 	}
 
-	bool operator==(const StateHash& other)const
-	{
-		bool equal = true;
-		for (int i = 0; i < 10; i++)
-		{
-			if (data[i] != other.data[i])
-			{
-				equal = false;
-				break;
-			}
-		}
-		return equal;
-	}
-
 	std::array<unsigned long long, 10> data;
 };
 
@@ -324,19 +306,6 @@ bool operator<(const StateHash& left, const StateHash& right)
 {
 	return left.data < right.data;
 }
-
-class Hasher {
-public:
-	unsigned long long operator()(const StateHash& other) const
-	{
-		unsigned long long hash = 0;
-		for (int i = 0; i < 10; i++)
-		{
-			hash ^= other.data[i];
-		}
-		return hash;
-	}
-};
 
 struct StateTreeResult
 {
@@ -351,7 +320,7 @@ struct StateTreeResult
 	ValueType type = ValueType::Exact;
 	int move = -1;
 	Location moveLocation = {0, 0};
-	int nodesVisited = 1;
+	long nodesVisited = 1;
 	int depth = 0;
 };
 
@@ -769,7 +738,7 @@ public:
 	StateHash stateHash;
 };
 
-StateTreeResult alphaBeta(State& state, std::map<StateHash, StateTreeResult>& transpositionTable, int depth, int alpha, int beta, bool& stop)
+StateTreeResult alphaBeta(State& state, std::map<StateHash, StateTreeResult>& transpositionTable, int depth, int alpha, int beta, bool& stop, long& cacheHits)
 {
 	long nodesVisited = 0;
 
@@ -786,6 +755,8 @@ StateTreeResult alphaBeta(State& state, std::map<StateHash, StateTreeResult>& tr
 	{
 		cacheFound = true;
 		StateTreeResult result = cache->second;
+		cacheHits++;
+		nodesVisited += result.nodesVisited;
 		if (result.depth >= depth)
 		{
 			if (result.type == ValueType::Exact)
@@ -824,7 +795,7 @@ StateTreeResult alphaBeta(State& state, std::map<StateHash, StateTreeResult>& tr
 	if (bestMove != -1)
 	{
 		state.makeMove(state.freeSpots[bestMove].location.x, state.freeSpots[bestMove].location.y);
-		auto result = alphaBeta(state, transpositionTable, depth - 1, -beta, -alpha, stop);
+		auto result = alphaBeta(state, transpositionTable, depth - 1, -beta, -alpha, stop, cacheHits);
 		state.undoMove();
 
 		result.value = -result.value;
@@ -846,7 +817,7 @@ StateTreeResult alphaBeta(State& state, std::map<StateHash, StateTreeResult>& tr
 			if (state.freeSpots[i].moveIndex > 0 && i != bestMove)
 			{
 				state.makeMove(state.freeSpots[i].location.x, state.freeSpots[i].location.y);
-				auto result = alphaBeta(state, transpositionTable, depth - 1, -beta, -alpha, stop);
+				auto result = alphaBeta(state, transpositionTable, depth - 1, -beta, -alpha, stop, cacheHits);
 				state.undoMove();
 
 				result.value = -result.value;
@@ -863,7 +834,7 @@ StateTreeResult alphaBeta(State& state, std::map<StateHash, StateTreeResult>& tr
 		}
 	}
 
-	if (cacheFound || (depth >= 2 && transpositionTable.size() <= 100000000))
+	if (cacheFound || (depth >= 3 && transpositionTable.size() <= 100000000))
 	{
 		StateTreeResult result(score, nodesVisited, index);
 		result.move = index;

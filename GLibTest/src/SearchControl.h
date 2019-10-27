@@ -68,10 +68,11 @@ private:
 	void workerFunction(State& state)
 	{
 		std::map<StateHash, StateTreeResult> transpositionTable;
+		long cacheHits = 0;
 
 		for (int i = 1; i <= maxDepth; i++)
 		{
-			StateTreeResult newResult = alphaBeta(state, transpositionTable, i, -999, 999, stop);
+			StateTreeResult newResult = alphaBeta(state, transpositionTable, i, -999, 999, stop, cacheHits);
 
 			if (stop)
 			{
@@ -92,6 +93,8 @@ private:
 
 		auto end = std::chrono::steady_clock::now();
 		totalTime = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
+
+		//GLib::Out << "Cache hits: " << cacheHits << "\n";
 
 		finished = true;
 	}
