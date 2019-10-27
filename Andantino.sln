@@ -5,7 +5,7 @@ VisualStudioVersion = 15.0.27004.2010
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "GLib", "GLib\GLib.vcxproj", "{75459DBE-ADA4-4312-91A9-B197B8BE7607}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "GLibTest", "GLibTest\GLibTest.vcxproj", "{73209464-E77C-4D0B-9325-FE84AFD9C02D}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Andantino", "Andantino\Andantino.vcxproj", "{73209464-E77C-4D0B-9325-FE84AFD9C02D}"
 	ProjectSection(ProjectDependencies) = postProject
 		{75459DBE-ADA4-4312-91A9-B197B8BE7607} = {75459DBE-ADA4-4312-91A9-B197B8BE7607}
 	EndProjectSection
